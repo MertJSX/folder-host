@@ -1,0 +1,17 @@
+{
+  "name": "folder-host",
+  "version": "1.0.0",
+  "description": "It helps you share your local folder using a web server.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "MertJSX",
+  "license": "ISC",
+  "dependencies": {
+    "colors": "^1.4.0",
+    "cors": "^2.8.5",
+    "express": "^4.19.2",
+    "js-yaml": "^4.1.0"
+  }
+}
