@@ -39,8 +39,28 @@ const convertBytes = function (bytes) {
   return (bytes / Math.pow(1024, i)).toFixed(1) + " " + sizes[i]
 }
 
+function replacePathPrefix(fullPath, realPrefix) {
+  if (fullPath.startsWith(realPrefix)) {
+    return "./" + fullPath.slice(realPrefix.length);
+  }
+  return fullPath;
+}
 
-const getDirItems = function (dirPath, getFileSize) {
+function getParent(filePath) {
+  let lastIndex = filePath.lastIndexOf('/');
+  if (lastIndex === -1) return filePath;
+
+  let item = filePath.slice(0, lastIndex);
+
+  if (item.length > 1) {
+    return item;
+  } else {
+    return filePath.slice(0, lastIndex + 1);
+  }
+}
+
+
+const getDirItems = function (dirPath, getFileSize, config) {
   let files = fs.readdirSync(dirPath, { withFileTypes: true })
 
   getFileSize === undefined ? getFileSize = true : null;
@@ -48,8 +68,18 @@ const getDirItems = function (dirPath, getFileSize) {
   let arrayOfItems = []
 
   files.forEach(function (file) {
-    let isDirectory = fs.statSync(dirPath + "/" + file.name).isDirectory();
+    let fileStats = fs.statSync(dirPath + "/" + file.name);
+    let isDirectory = fileStats.isDirectory();
     let size;
+    let parentPath;
+
+    if (file.parentPath === config.folder + "/") {
+      // console.log(`${file.parentPath} === ${config.folder}`);
+      parentPath = "./";
+    } else {
+      // console.log(`${file.parentPath} === ${config.folder}`);
+      parentPath = replacePathPrefix(file.parentPath, `${config.folder}/`);
+    }
 
     if (getFileSize) {
       size = fs.statSync(dirPath + "/" + file.name).size;
@@ -58,8 +88,8 @@ const getDirItems = function (dirPath, getFileSize) {
     let item;
 
     getFileSize ?
-    item = new DirItem(file.name, file.parentPath, isDirectory, convertBytes(size))
-    : item = new DirItem(file.name, file.parentPath, isDirectory );
+    item = new DirItem(file.name, parentPath, `${parentPath}${file.name}`, isDirectory, fileStats.birthtime, fileStats.mtime, convertBytes(size))
+    : item = new DirItem(file.name, parentPath, `${parentPath}${file.name}`, isDirectory, fileStats.birthtime, fileStats.mtime );
 
     arrayOfItems.push(item)
   })
@@ -83,4 +113,4 @@ const getTotalSize = function (directoryPath) {
 
 
 
-module.exports = { getTotalSize, getDirItems };
+module.exports = { getTotalSize, getDirItems, getParent, replacePathPrefix };
