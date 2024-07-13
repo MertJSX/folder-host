@@ -4,7 +4,7 @@ const fs = require("fs");
 const colors = require("colors");
 const yaml = require("js-yaml");
 const { strings } = require("./strings");
-const { getTotalSize, getDirItems, getParent, replacePathPrefix } = require("./utils");
+const { getTotalSize, getDirItems, getParent, replacePathPrefix, removeDir } = require("./utils");
 const cors = require("cors");
 const { DirItem } = require("./dir_item");
 let config;
@@ -19,12 +19,13 @@ if (!fs.existsSync("./config.yml") || fs.existsSync("./config.yaml")) {
     fs.writeFileSync("config.yml", strings.defaultConfig);
 }
 
-
-if (fs.existsSync("./config.yml")) {
-    config = yaml.load(fs.readFileSync('config.yml', 'utf8'));
-} else {
-    config = yaml.load(fs.readFileSync('config.yaml', 'utf8'));
+if (!fs.existsSync("./recovery_bin")) {
+    console.log("recovery_bin is missing...".yellow);
+    console.log("Creating new recovery_bin...".green);
+    fs.mkdirSync("recovery_bin");
 }
+
+config = yaml.load(fs.readFileSync('config.yml', 'utf8'));
 
 // Get config data on start
 
@@ -78,8 +79,8 @@ config.permissions.read_directories ?
     app.get("/read-dir", (req, res) => {
 
         let path = "";
-        let getFileSize = req.body.getFileSize !== undefined ?
-            false : true;
+        let mode = req.query.mode === "Optimized mode" ?
+            "Optimized mode" : req.query.mode === "Quality mode" ? "Quality mode" : "Balanced mode";
 
         console.log(req.query);
 
@@ -121,9 +122,14 @@ config.permissions.read_directories ?
         const trimmedPath = dirPath.endsWith('/') ? dirPath.slice(0, -1) : dirPath;
         const folderName = trimmedPath.substring(trimmedPath.lastIndexOf('/') + 1);
         dirPath = replacePathPrefix(dirPath, `${config.folder}/`);
-        let directoryInfo = new DirItem(folderName, getParent(dirPath), dirPath, directoryData.isDirectory(), directoryData.birthtime, directoryData.mtime, getTotalSize(`${config.folder}${path}`))
+        let directoryInfo;
+        if (mode === "Optimized mode") {
+            directoryInfo = new DirItem(folderName, getParent(dirPath), dirPath, directoryData.isDirectory(), directoryData.birthtime, directoryData.mtime, "N/A")
+        } else {
+            directoryInfo = new DirItem(folderName, getParent(dirPath), dirPath, directoryData.isDirectory(), directoryData.birthtime, directoryData.mtime, getTotalSize(`${config.folder}${path}`))
+        }
 
-        let data = getDirItems(`${config.folder}${path}`, getFileSize, config);
+        let data = getDirItems(`${config.folder}${path}`, mode, config);
         let isEmpty = false;
 
         if (!data[0]) {
@@ -227,10 +233,84 @@ config.permissions.download ?
         }
 
 
-            res.status(200);
-            res.download(`${config.folder}${path}`)
+        res.status(200);
+        res.download(`${config.folder}${path}`)
 
     }) : console.log("/read-file".yellow + " cancelled!".gray)
+
+
+config.permissions.delete ?
+    app.get("/delete", (req, res) => {
+
+        let path;
+        let recovery_bin = config.recovery_bin;
+
+        console.log("Recovery bin: " + recovery_bin);
+
+        if (req.query.path) {
+            path = req.query.path;
+        } else {
+            res.status(400);
+            res.json({
+                err: "Bad request!"
+            })
+            return
+        }
+
+        if (config.password) {
+            if (req.query.password !== config.password) {
+                res.status(400);
+                res.json({ err: "Wrong password!" })
+                return
+            }
+        }
+
+        if (!fs.existsSync(`${config.folder}${path}`)) {
+            res.status(400);
+            res.json({ err: "Wrong path!" })
+            return;
+        } else {
+            let item = fs.statSync(`${config.folder}${path}`);
+            if (`${config.folder}${path}` === `${config.folder}/`) {
+                res.status(400);
+                res.json({ err: "You can't delete the main path!" })
+                return;
+            }
+            if (item.isDirectory() && !recovery_bin) {
+                console.log(`${config.folder}${path}`);
+
+                removeDir(`${config.folder}${path}`);
+
+                res.status(200)
+                res.json({ response: "Deleted!" })
+                return;
+            } else if (!recovery_bin) {
+                console.log(`${config.folder}${path}`);
+                fs.unlink(`${config.folder}${path}`, (err) => {
+                    if (err) {
+                        console.log(err);
+                        res.status(520)
+                        res.json({ err: "Unknown error" })
+                    } else {
+                        res.status(200)
+                        res.json({ response: "Deleted!" })
+                    }
+                    return;
+                })
+            } else {
+                if (fs.existsSync(`./recovery_bin${path}`)) {
+                    res.status(200)
+                    res.json({ err: "This item already exists in recovery_bin!" })
+                    return;
+                }
+                fs.renameSync(`${config.folder}${path}`, `./recovery_bin${path}`);
+                res.status(200)
+                res.json({ response: "Moved to recovery_bin!" })
+                return;
+            }
+        }
+
+    }) : console.log("/delete".yellow + " cancelled!".gray)
 
 
 !config.permissions.change && !config.permissions.create ?
