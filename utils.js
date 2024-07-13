@@ -39,6 +39,20 @@ const convertBytes = function (bytes) {
   return (bytes / Math.pow(1024, i)).toFixed(1) + " " + sizes[i]
 }
 
+function removeDir(directoryPath) {
+  if (fs.existsSync(directoryPath)) {
+      fs.readdirSync(directoryPath).forEach((file, index) => {
+          const curPath = path.join(directoryPath, file);
+          if (fs.lstatSync(curPath).isDirectory()) {
+              removeDir(curPath);
+          } else {
+              fs.unlinkSync(curPath);
+          }
+      });
+      fs.rmdirSync(directoryPath);
+  }
+}
+
 function replacePathPrefix(fullPath, realPrefix) {
   if (fullPath.startsWith(realPrefix)) {
     return "./" + fullPath.slice(realPrefix.length);
@@ -60,18 +74,20 @@ function getParent(filePath) {
 }
 
 
-const getDirItems = function (dirPath, getFileSize, config) {
+const getDirItems = function (dirPath, mode, config) {
   let files = fs.readdirSync(dirPath, { withFileTypes: true })
-
-  getFileSize === undefined ? getFileSize = true : null;
 
   let arrayOfItems = []
 
   files.forEach(function (file) {
     let fileStats = fs.statSync(dirPath + "/" + file.name);
     let isDirectory = fileStats.isDirectory();
-    let size;
+    let size = fileStats.size;
     let parentPath;
+
+    if (mode === "Quality mode" && isDirectory) {
+      size = getTotalSize(dirPath+ file.name);
+    }
 
     if (file.parentPath === config.folder + "/") {
       // console.log(`${file.parentPath} === ${config.folder}`);
@@ -81,15 +97,12 @@ const getDirItems = function (dirPath, getFileSize, config) {
       parentPath = replacePathPrefix(file.parentPath, `${config.folder}/`);
     }
 
-    if (getFileSize) {
-      size = fs.statSync(dirPath + "/" + file.name).size;
-    }
-
     let item;
 
-    getFileSize ?
-    item = new DirItem(file.name, parentPath, `${parentPath}${file.name}`, isDirectory, fileStats.birthtime, fileStats.mtime, convertBytes(size))
-    : item = new DirItem(file.name, parentPath, `${parentPath}${file.name}`, isDirectory, fileStats.birthtime, fileStats.mtime );
+    mode === "Quality mode" && isDirectory ?
+    item = new DirItem(file.name, parentPath, `${parentPath}${file.name}`, isDirectory, fileStats.birthtime, fileStats.mtime, size)
+    : item = new DirItem(file.name, parentPath, `${parentPath}${file.name}`, isDirectory, fileStats.birthtime, fileStats.mtime, convertBytes(size) );
+
 
     arrayOfItems.push(item)
   })
@@ -108,9 +121,13 @@ const getTotalSize = function (directoryPath) {
     totalSize += fs.statSync(filePath).size
   })
 
+  // console.log(directoryPath);
+  // console.log(totalSize);
+  // console.log(convertBytes(totalSize));
+
   return convertBytes(totalSize);
 }
 
 
 
-module.exports = { getTotalSize, getDirItems, getParent, replacePathPrefix };
+module.exports = { getTotalSize, getDirItems, getParent, replacePathPrefix, removeDir };
