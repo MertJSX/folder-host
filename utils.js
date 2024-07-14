@@ -79,7 +79,7 @@ const getDirItems = function (dirPath, mode, config) {
 
   let arrayOfItems = []
 
-  files.forEach(function (file) {
+  files.forEach(function (file, index) {
     let fileStats = fs.statSync(dirPath + "/" + file.name);
     let isDirectory = fileStats.isDirectory();
     let size = fileStats.size;
@@ -100,8 +100,8 @@ const getDirItems = function (dirPath, mode, config) {
     let item;
 
     mode === "Quality mode" && isDirectory ?
-    item = new DirItem(file.name, parentPath, `${parentPath}${file.name}`, isDirectory, fileStats.birthtime, fileStats.mtime, size)
-    : item = new DirItem(file.name, parentPath, `${parentPath}${file.name}`, isDirectory, fileStats.birthtime, fileStats.mtime, convertBytes(size) );
+    item = new DirItem(file.name, parentPath, `${parentPath}${file.name}`, isDirectory, fileStats.birthtime, fileStats.mtime, size, index)
+    : item = new DirItem(file.name, parentPath, `${parentPath}${file.name}`, isDirectory, fileStats.birthtime, fileStats.mtime, convertBytes(size), index );
 
 
     arrayOfItems.push(item)
