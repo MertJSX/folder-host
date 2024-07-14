@@ -151,6 +151,8 @@ config.permissions.read_files ?
     app.get("/read-file", (req, res) => {
 
         let path;
+        let itemStat;
+        let fileName;
 
         if (req.query.filepath) {
             path = req.query.filepath;
@@ -175,12 +177,19 @@ config.permissions.read_files ?
             res.json({ err: "Wrong filepath!" })
             return;
         } else {
-            let item = fs.statSync(`${config.folder}${path}`);
-            if (item.isDirectory()) {
+            itemStat = fs.statSync(`${config.folder}${path}`);
+            if (itemStat.isDirectory()) {
                 res.status(200);
                 res.json({ err: "Filepath is a directory!" })
                 return;
             }
+        }
+
+        if (path.slice(-1) === "/") {
+            let item = path.slice(0, -1);
+            fileName = item.split("/").pop();
+        } else {
+            fileName = path.split("/").pop();
         }
 
         fs.readFile(`${config.folder}${path}`, "utf8", (err, data) => {
@@ -189,8 +198,9 @@ config.permissions.read_files ?
                 res.status(200);
                 res.json({ err: "Unknown error!" })
             } else {
+                +
                 res.status(200);
-                res.json({ data: data, res: "Successfully readed!" })
+                res.json({ data: data, res: "Successfully readed!", title: fileName })
             }
         });
     }) : console.log("/read-file".yellow + " cancelled!".gray)
@@ -298,8 +308,11 @@ config.permissions.delete ?
                     return;
                 })
             } else {
+
+                // Should be changed!
+
                 if (fs.existsSync(`./recovery_bin${path}`)) {
-                    res.status(200)
+                    res.status(400)
                     res.json({ err: "This item already exists in recovery_bin!" })
                     return;
                 }
@@ -366,12 +379,12 @@ config.permissions.delete ?
         console.log(`${config.folder}${filepath}`);
 
         if (fs.existsSync(`${config.folder}${filepath}`) && type === "create") {
-            res.status(200);
-            res.json({ response: "Already exist!" })
+            res.status(400);
+            res.json({ err: "Already exist!" })
             return;
         } else if (!fs.existsSync(`${config.folder}${filepath}`) && type === "change") {
-            res.status(200)
-            res.json({ response: "The file doesn't exist!" })
+            res.status(400)
+            res.json({ err: "The file doesn't exist!" })
             return;
         }
 
@@ -391,7 +404,16 @@ config.permissions.delete ?
         let oldFilepath = req.query.oldFilepath;
         let oldFileName;
         let newFilepath = req.query.newFilepath;
+        let newFilepathStat;
         let type = req.query.type; // create or change
+        if (type === "move") {
+            newFilepathStat = fs.statSync(`${config.folder}${newFilepath}`)
+            if (!newFilepathStat.isDirectory()) {
+                res.status(400)
+                res.json({ err: "The directory doesn't exist!" })
+                return;
+            }
+        }
 
         // Check permissions
 
@@ -404,7 +426,7 @@ config.permissions.delete ?
             res.json({ err: "You don't have permission!" })
             return
         }
-
+        
         if (oldFilepath && newFilepath && type) {
             if (type === "rename") {
                 type = "rename";
@@ -433,6 +455,35 @@ config.permissions.delete ?
             }
         }
 
+        if (oldFilepath === newFilepath) {
+            console.log("Forbidden! Path locations are same!".red);
+            res.status(400);
+            res.json({ err: "Same location!" })
+            return
+        }
+
+        
+        if (!fs.existsSync(`${config.folder}${oldFilepath}`)) {
+            res.status(400);
+            res.json({ err: "The file doesn't exist!" })
+            return;
+        } 
+        
+        console.log(`${config.folder}${newFilepath}`);
+        console.log(fs.existsSync(`${config.folder}${newFilepath}`));
+
+        if (!fs.existsSync(`${config.folder}${newFilepath}`) && type === "move") {
+            res.status(400)
+            res.json({ err: "The file doesn't exist!" })
+            return;
+        }
+
+        if (!fs.existsSync(`${config.folder}${getParent(newFilepath)}`) && type === "rename") {
+            res.status(400)
+            res.json({ err: "The file doesn't exist!" })
+            return;
+        }
+
         if (newFilepath.slice(-1) !== "/" && type === "move") {
             newFilepath = newFilepath + "/";
         }
@@ -444,15 +495,8 @@ config.permissions.delete ?
             oldFileName = oldFilepath.split("/").pop();
         }
 
-        if (!fs.existsSync(`${config.folder}${oldFilepath}`)) {
-            res.status(200);
-            res.json({ response: "The file doesn't exist!" })
-            return;
-        } else if (!fs.existsSync(`${config.folder}${getParent(newFilepath)}`)) {
-            res.status(200)
-            res.json({ response: "The file doesn't exist!" })
-            return;
-        }
+        console.log(`${config.folder}${oldFilepath}`);
+        console.log(fs.existsSync(`${config.folder}${oldFilepath}`));
 
         if (type === "move") {
             fs.renameSync(`${config.folder}${oldFilepath}`, `${config.folder}${newFilepath}${oldFileName}`);
