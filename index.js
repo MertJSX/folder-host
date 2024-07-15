@@ -6,6 +6,7 @@ const yaml = require("js-yaml");
 const { strings } = require("./strings");
 const { getTotalSize, getDirItems, getParent, replacePathPrefix, removeDir } = require("./utils");
 const cors = require("cors");
+const pathlib = require("path");
 const { DirItem } = require("./dir_item");
 let config;
 let abort = false;
@@ -199,7 +200,7 @@ config.permissions.read_files ?
                 res.json({ err: "Unknown error!" })
             } else {
                 +
-                res.status(200);
+                    res.status(200);
                 res.json({ data: data, res: "Successfully readed!", title: fileName })
             }
         });
@@ -253,6 +254,7 @@ config.permissions.delete ?
     app.get("/delete", (req, res) => {
 
         let path;
+        let itemName;
         let recovery_bin = config.recovery_bin;
 
         console.log("Recovery bin: " + recovery_bin);
@@ -309,14 +311,25 @@ config.permissions.delete ?
                 })
             } else {
 
+                if (path.slice(-1) === "/") {
+                    let item = path.slice(0, -1);
+                    itemName = item.split("/").pop();
+                } else {
+                    itemName = path.split("/").pop();
+                }
                 // Should be changed!
 
-                if (fs.existsSync(`./recovery_bin${path}`)) {
-                    res.status(400)
-                    res.json({ err: "This item already exists in recovery_bin!" })
-                    return;
+                console.log(`./recovery_bin/${itemName}`);
+
+                if (fs.existsSync(`./recovery_bin/${itemName}`)) {
+                    let i = 0;
+                    while (fs.existsSync(`./recovery_bin/${itemName}`)) {
+                        console.log(`./recovery_bin/${itemName}`);
+                        i++;
+                        itemName = `${pathlib.basename(path, pathlib.extname(path))} (${i})${pathlib.extname(path)}`;
+                    }
                 }
-                fs.renameSync(`${config.folder}${path}`, `./recovery_bin${path}`);
+                fs.renameSync(`${config.folder}${path}`, `./recovery_bin/${itemName}`);
                 res.status(200)
                 res.json({ response: "Moved to recovery_bin!" })
                 return;
@@ -426,7 +439,7 @@ config.permissions.delete ?
             res.json({ err: "You don't have permission!" })
             return
         }
-        
+
         if (oldFilepath && newFilepath && type) {
             if (type === "rename") {
                 type = "rename";
@@ -462,13 +475,13 @@ config.permissions.delete ?
             return
         }
 
-        
+
         if (!fs.existsSync(`${config.folder}${oldFilepath}`)) {
             res.status(400);
             res.json({ err: "The file doesn't exist!" })
             return;
-        } 
-        
+        }
+
         console.log(`${config.folder}${newFilepath}`);
         console.log(fs.existsSync(`${config.folder}${newFilepath}`));
 
