@@ -68,6 +68,19 @@ app.use(express.static(config.folder))
 app.use(cors());
 app.use(express.json());
 
+app.use((req, res, next) => {
+    console.log(req.query);
+    if (config.password) {
+        if (req.query.password !== config.password) {
+            res.status(401);
+            res.json({ err: "Wrong password!" })
+            return
+        }
+    }
+    next()
+})
+
+
 // Get folder size on start
 
 console.log("Total size:".green);
@@ -76,15 +89,6 @@ console.log(getTotalSize(config.folder));
 
 config.password ?
     app.get("/verify-password", (req, res) => {
-
-        if (config.password) {
-            if (req.query.password !== config.password) {
-                res.status(200);
-                res.json({ err: "Wrong password!" })
-                return
-            }
-        }
-
         res.status(200);
         res.json({
             res: "Password is correct!"
@@ -99,24 +103,13 @@ config.permissions.read_directories ?
         let mode = req.query.mode === "Optimized mode" ?
             "Optimized mode" : req.query.mode === "Quality mode" ? "Quality mode" : "Balanced mode";
 
-        console.log(req.query);
-
         if (req.query.folder) {
             path = req.query.folder;
-        }
-
-        if (config.password) {
-            if (req.query.password !== config.password) {
-                res.status(400);
-                res.json({ err: "Wrong password!" })
-                return
-            }
         }
 
         if (path.slice(-1) !== "/") {
             path = path + "/";
         }
-
 
         // Validation to avoid errors
 
@@ -181,14 +174,6 @@ config.permissions.read_files ?
             return
         }
 
-        if (config.password) {
-            if (req.query.password !== config.password) {
-                res.status(400);
-                res.json({ err: "Wrong password!" })
-                return
-            }
-        }
-
         if (!fs.existsSync(`${config.folder}${path}`)) {
             res.status(200);
             res.json({ err: "Wrong filepath!" })
@@ -238,14 +223,6 @@ config.permissions.download ?
             return
         }
 
-        if (config.password) {
-            if (req.query.password !== config.password) {
-                res.status(400);
-                res.json({ err: "Wrong password!" })
-                return
-            }
-        }
-
         if (!fs.existsSync(`${config.folder}${path}`)) {
             res.status(200);
             res.json({ err: "Wrong filepath!" })
@@ -278,14 +255,6 @@ config.permissions.upload ?
                     err: "Bad request!"
                 })
                 return
-            }
-
-            if (config.password) {
-                if (req.query.password !== config.password) {
-                    res.status(400);
-                    res.json({ err: "Wrong password!" })
-                    return
-                }
             }
 
             console.log(`${config.folder}${path}`);
@@ -330,14 +299,6 @@ config.permissions.delete ?
                 err: "Bad request!"
             })
             return
-        }
-
-        if (config.password) {
-            if (req.query.password !== config.password) {
-                res.status(400);
-                res.json({ err: "Wrong password!" })
-                return
-            }
         }
 
         if (!fs.existsSync(`${config.folder}${path}`)) {
@@ -406,9 +367,6 @@ config.permissions.delete ?
     console.log("/write-file".yellow + " cancelled!".gray)
     : app.post("/write-file", (req, res) => {
 
-        console.log(req.query);
-        console.log(req.body);
-
         let filepath = req.query.path;
         let itemType = req.body.itemType;
         let itemName = req.body.itemName;
@@ -447,14 +405,6 @@ config.permissions.delete ?
             return
         }
 
-        if (config.password) {
-            if (req.query.password !== config.password) {
-                res.status(400);
-                res.json({ err: "Wrong password!" })
-                return
-            }
-        }
-
         console.log(`${config.folder}${filepath}${itemName}`);
 
         if (fs.existsSync(`${config.folder}${filepath}/${itemName}`) && type === "create") {
@@ -488,8 +438,6 @@ config.permissions.delete ?
 !config.permissions.move && !config.permissions.rename ?
     console.log("/rename-file".yellow + " cancelled!".gray)
     : app.get("/rename-file", (req, res) => {
-
-        console.log(req.query);
 
         let oldFilepath = req.query.oldFilepath;
         let oldFileName;
@@ -535,14 +483,6 @@ config.permissions.delete ?
                 err: "Bad request!"
             })
             return
-        }
-
-        if (config.password) {
-            if (req.query.password !== config.password) {
-                res.status(400);
-                res.json({ err: "Wrong password!" })
-                return
-            }
         }
 
         if (oldFilepath === newFilepath) {
