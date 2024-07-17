@@ -8,6 +8,7 @@ const { getTotalSize, getDirItems, getParent, replacePathPrefix, removeDir } = r
 const cors = require("cors");
 const pathlib = require("path");
 const { DirItem } = require("./dir_item");
+const multer = require("multer");
 let config;
 let abort = false;
 
@@ -27,6 +28,21 @@ if (!fs.existsSync("./recovery_bin")) {
 }
 
 config = yaml.load(fs.readFileSync('config.yml', 'utf8'));
+
+// Multer storage
+
+const storage = multer.diskStorage({
+    destination: function (req, file, cb) {
+        const uploadPath = `${config.folder}/${req.query.path}`;
+
+        cb(null, uploadPath);
+    },
+    filename: function (req, file, cb) {
+        cb(null, file.originalname);
+    },
+});
+
+const upload = multer({ storage: storage })
 
 // Get config data on start
 
@@ -250,6 +266,53 @@ config.permissions.download ?
     }) : console.log("/read-file".yellow + " cancelled!".gray)
 
 
+config.permissions.upload ?
+    app.post("/upload",
+        (req, res, next) => {
+
+            let path = req.query.path;
+
+            if (path === undefined) {
+                res.status(400);
+                res.json({
+                    err: "Bad request!"
+                })
+                return
+            }
+
+            if (config.password) {
+                if (req.query.password !== config.password) {
+                    res.status(400);
+                    res.json({ err: "Wrong password!" })
+                    return
+                }
+            }
+
+            console.log(`${config.folder}${path}`);
+
+            if (!fs.existsSync(`${config.folder}${path}`)) {
+                res.status(400);
+                res.json({ err: "Wrong filepath!" })
+                return;
+            } else {
+                let item = fs.statSync(`${config.folder}${path}`);
+                if (!item.isDirectory()) {
+                    res.status(400);
+                    res.json({ err: "Wrong filepath!" })
+                    return;
+                }
+            }
+            next()
+        },
+        upload.single("file"),
+        (req, res) => {
+
+            res.status(200);
+            res.json({response: "Successfully uploaded!"})
+
+        }) : console.log("/upload".yellow + " cancelled!".gray)
+
+
 config.permissions.delete ?
     app.get("/delete", (req, res) => {
 
@@ -344,8 +407,11 @@ config.permissions.delete ?
     : app.post("/write-file", (req, res) => {
 
         console.log(req.query);
+        console.log(req.body);
 
-        let filepath = req.query.filepath;
+        let filepath = req.query.path;
+        let itemType = req.body.itemType;
+        let itemName = req.body.itemName;
         let content = req.body.content;
         let type = req.query.type; // create or change
 
@@ -361,10 +427,10 @@ config.permissions.delete ?
             return
         }
 
-        if (filepath && content && type) {
-            if (type === "create") {
+        if (filepath && type) {
+            if (type === "create" && (itemType === "file" || itemType === "folder")) {
                 type = "create";
-            } else if (type === "change") {
+            } else if (type === "change" && content !== undefined) {
                 type = "change"
             } else {
                 res.status(400);
@@ -389,9 +455,9 @@ config.permissions.delete ?
             }
         }
 
-        console.log(`${config.folder}${filepath}`);
+        console.log(`${config.folder}${filepath}${itemName}`);
 
-        if (fs.existsSync(`${config.folder}${filepath}`) && type === "create") {
+        if (fs.existsSync(`${config.folder}${filepath}/${itemName}`) && type === "create") {
             res.status(400);
             res.json({ err: "Already exist!" })
             return;
@@ -401,10 +467,21 @@ config.permissions.delete ?
             return;
         }
 
-        fs.writeFileSync(`${config.folder}${filepath}`, content);
+        if (type === "create" && itemType === "folder" && itemName !== undefined) {
+            fs.mkdirSync(`${config.folder}${filepath}${itemName}`)
+            res.status(200);
+            res.json({ response: "Folder created!" })
+        } else if (type === "create" && itemType === "file" && itemName !== undefined) {
+            fs.writeFileSync(`${config.folder}${filepath}${itemName}`, "");
+            res.status(200);
+            res.json({ response: "File created!" })
+        } else {
+            fs.writeFileSync(`${config.folder}${filepath}`, content);
+            res.status(200);
+            res.json({ response: "Saved!" })
+        }
 
-        res.status(200);
-        res.json({ response: "Saved!" })
+
     })
 
 
