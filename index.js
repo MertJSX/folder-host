@@ -358,10 +358,11 @@ config.permissions.delete ?
                 } else {
                     itemName = path.split("/").pop();
                 }
+                
                 // Should be changed!
-
+                
                 console.log(`./recovery_bin/${itemName}`);
-
+                
                 if (fs.existsSync(`./recovery_bin/${itemName}`)) {
                     let i = 0;
                     while (fs.existsSync(`./recovery_bin/${itemName}`)) {
@@ -370,6 +371,31 @@ config.permissions.delete ?
                         itemName = `${pathlib.basename(path, pathlib.extname(path))} (${i})${pathlib.extname(path)}`;
                     }
                 }
+
+                let bin_storage_limit;
+
+                if (config.bin_storage_limit) {
+                    bin_storage_limit = convertStringToBytes(config.bin_storage_limit);
+                    let fileToBeDeletedStat = fs.statSync(`${config.folder}${path}`)
+    
+                    let sizeOfFileToBeDeleted = fileToBeDeletedStat.size;
+
+                    if (fileToBeDeletedStat.isDirectory()) {
+                        sizeOfFileToBeDeleted = getTotalSize(`${config.folder}${path}`, false);
+                    }
+
+                    let sizeOfRecoveryBin = getTotalSize("./recovery_bin", false);
+                    let totalSize = sizeOfFileToBeDeleted + sizeOfRecoveryBin;
+
+                    console.log(`Total: ${totalSize} > Max: ${bin_storage_limit}`);
+    
+                    if (totalSize > bin_storage_limit) {
+                        res.status(520)
+                        res.json({ err: "This item exceeds the maximum recovery bin size." })
+                        return;
+                    }
+                }
+
                 fs.renameSync(`${config.folder}${path}`, `./recovery_bin/${itemName}`);
                 res.status(200)
                 res.json({ response: "Moved to recovery_bin!" })
