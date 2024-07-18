@@ -39,6 +39,28 @@ const convertBytes = function (bytes) {
   return (bytes / Math.pow(1024, i)).toFixed(1) + " " + sizes[i]
 }
 
+const convertStringToBytes = function (sizeString) {
+  const sizes = ["Bytes", "KB", "MB", "GB", "TB"];
+
+  // Split the input into numerical value and unit
+  const [value, unit] = sizeString.split(" ");
+
+  // Find the index of the unit in the sizes array
+  const index = sizes.indexOf(unit);
+
+  // If unit is not found or value is not a number, return NaN
+  if (index === -1 || isNaN(value)) {
+      return 0;
+  }
+
+  // Calculate the bytes
+  return parseFloat(value) * Math.pow(1024, index);
+}
+
+function byteSize(str) {
+  return new Blob([str]).size;
+}
+
 function removeDir(directoryPath) {
   if (fs.existsSync(directoryPath)) {
       fs.readdirSync(directoryPath).forEach((file, index) => {
@@ -110,8 +132,12 @@ const getDirItems = function (dirPath, mode, config) {
   return arrayOfItems
 }
 
-const getTotalSize = function (directoryPath) {
+const getTotalSize = function (directoryPath, stringOutput) {
   const arrayOfFiles = getAllFiles(directoryPath)
+
+  if (stringOutput === undefined) {
+    stringOutput = true;
+  }
 
   //console.log(arrayOfFiles);
 
@@ -125,9 +151,13 @@ const getTotalSize = function (directoryPath) {
   // console.log(totalSize);
   // console.log(convertBytes(totalSize));
 
-  return convertBytes(totalSize);
+  if (stringOutput) {
+    return convertBytes(totalSize);
+  } else {
+    return totalSize;
+  }
 }
 
 
 
-module.exports = { getTotalSize, getDirItems, getParent, replacePathPrefix, removeDir };
+module.exports = { getTotalSize, getDirItems, getParent, replacePathPrefix, removeDir, convertStringToBytes, byteSize };
