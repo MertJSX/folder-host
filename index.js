@@ -4,7 +4,15 @@ const fs = require("fs");
 const colors = require("colors");
 const yaml = require("js-yaml");
 const { strings } = require("./strings");
-const { getTotalSize, getDirItems, getParent, replacePathPrefix, removeDir } = require("./utils");
+const {
+    getTotalSize,
+    getDirItems,
+    getParent,
+    replacePathPrefix,
+    removeDir,
+    convertStringToBytes,
+    byteSize
+} = require("./utils");
 const cors = require("cors");
 const pathlib = require("path");
 const { DirItem } = require("./dir_item");
@@ -64,7 +72,6 @@ if (!config.folder) {
     }, 3000);
 }
 
-app.use(express.static(config.folder))
 app.use(cors());
 app.use(express.json());
 
@@ -86,6 +93,9 @@ app.use((req, res, next) => {
 console.log("Total size:".green);
 console.log(getTotalSize(config.folder));
 
+if (config.storage_limit) {
+    console.log(`\n${convertStringToBytes(config.storage_limit)}`);
+}
 
 config.password ?
     app.get("/verify-password", (req, res) => {
@@ -126,7 +136,6 @@ config.permissions.read_directories ?
             }
         }
 
-
         let dirPath = `${config.folder}${path}`;
         let directoryData = fs.statSync(dirPath)
         const trimmedPath = dirPath.endsWith('/') ? dirPath.slice(0, -1) : dirPath;
@@ -139,12 +148,20 @@ config.permissions.read_directories ?
             directoryInfo = new DirItem(folderName, getParent(dirPath), dirPath, directoryData.isDirectory(), directoryData.birthtime, directoryData.mtime, getTotalSize(`${config.folder}${path}`))
         }
 
+        if (path === "/" && config.storage_limit) {
+            directoryInfo.storage_limit = config.storage_limit;
+        } else if (path === "/" && !config.storage_limit) {
+            directoryInfo.storage_limit = "UNLIMITED"
+        }
+
         let data = getDirItems(`${config.folder}${path}`, mode, config);
         let isEmpty = false;
 
         if (!data[0]) {
             isEmpty = true;
         }
+
+        console.log(path);
 
         res.status(200);
         res.json({
@@ -277,7 +294,7 @@ config.permissions.upload ?
         (req, res) => {
 
             res.status(200);
-            res.json({response: "Successfully uploaded!"})
+            res.json({ response: "Successfully uploaded!" })
 
         }) : console.log("/upload".yellow + " cancelled!".gray)
 
@@ -372,6 +389,9 @@ config.permissions.delete ?
         let itemName = req.body.itemName;
         let content = req.body.content;
         let type = req.query.type; // create or change
+
+        console.log("New content size is: ".yellow);
+        console.log(byteSize(content));
 
         // Check permissions
 
