@@ -376,11 +376,11 @@ config.permissions.delete ?
                 } else {
                     itemName = path.split("/").pop();
                 }
-                
+
                 // Should be changed!
-                
+
                 console.log(`./recovery_bin/${itemName}`);
-                
+
                 if (fs.existsSync(`./recovery_bin/${itemName}`)) {
                     let i = 0;
                     while (fs.existsSync(`./recovery_bin/${itemName}`)) {
@@ -395,7 +395,7 @@ config.permissions.delete ?
                 if (config.bin_storage_limit) {
                     bin_storage_limit = convertStringToBytes(config.bin_storage_limit);
                     let fileToBeDeletedStat = fs.statSync(`${config.folder}${path}`)
-    
+
                     let sizeOfFileToBeDeleted = fileToBeDeletedStat.size;
 
                     if (fileToBeDeletedStat.isDirectory()) {
@@ -406,7 +406,7 @@ config.permissions.delete ?
                     let totalSize = sizeOfFileToBeDeleted + sizeOfRecoveryBin;
 
                     console.log(`Total: ${totalSize} > Max: ${bin_storage_limit}`);
-    
+
                     if (totalSize > bin_storage_limit) {
                         res.status(520)
                         res.json({ err: "This item exceeds the maximum recovery bin size." })
@@ -429,7 +429,7 @@ config.permissions.delete ?
     : app.post("/write-file", (req, res) => {
 
         let filepath = req.query.path;
-        let itemType = req.body.itemType;
+        let itemType = req.body.itemType; // folder or file
         let itemName = req.body.itemName;
         let content = req.body.content;
         let type = req.query.type; // create or change
@@ -472,9 +472,16 @@ config.permissions.delete ?
         console.log(`${config.folder}${filepath}${itemName}`);
 
         if (fs.existsSync(`${config.folder}${filepath}/${itemName}`) && type === "create") {
-            res.status(400);
-            res.json({ err: "Already exist!" })
-            return;
+            if (itemType === "folder" && fs.statSync(`${config.folder}${filepath}/${itemName}`).isDirectory()) {
+                res.status(400);
+                res.json({ err: "Already exist!" })
+                return;
+            }
+            if (itemType !== "folder" && !fs.statSync(`${config.folder}${filepath}/${itemName}`).isDirectory()) {
+                res.status(400);
+                res.json({ err: "Already exist!" })
+                return;
+            }
         } else if (!fs.existsSync(`${config.folder}${filepath}`) && type === "change") {
             res.status(400)
             res.json({ err: "The file doesn't exist!" })
@@ -594,11 +601,16 @@ config.permissions.delete ?
         if (type === "move") {
             if (fs.existsSync(`${config.folder}${newFilepath}${oldFileName}`)) {
                 res.status(520);
-                res.json({ err: "The destination already has a file named!" });
+                res.json({ err: "The destination already has a item named!" });
                 return;
             }
             fs.renameSync(`${config.folder}${oldFilepath}`, `${config.folder}${newFilepath}${oldFileName}`);
         } else {
+            if (fs.existsSync(`${config.folder}${newFilepath}`)) {
+                res.status(520);
+                res.json({ err: "The destination already has a item named!" });
+                return;
+            }
             fs.renameSync(`${config.folder}${oldFilepath}`, `${config.folder}${newFilepath}`);
         }
 
