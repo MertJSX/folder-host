@@ -41,12 +41,32 @@ config = yaml.load(fs.readFileSync('config.yml', 'utf8'));
 
 const storage = multer.diskStorage({
     destination: function (req, file, cb) {
-        const uploadPath = `${config.folder}/${req.query.path}`;
+        const uploadPath = `${config.folder}${req.query.path}`;
 
         cb(null, uploadPath);
     },
     filename: function (req, file, cb) {
-        cb(null, file.originalname);
+        let path = req.query.path;
+        let fileName = file.originalname;
+
+        console.log(fileName);
+
+        if (path.slice(-1) !== "/") {
+            path = path + "/"
+        }
+
+        console.log(`${config.folder}${req.query.path}${fileName}`);
+
+        if (fs.existsSync(`${config.folder}${req.query.path}${fileName}`)) {
+            let i = 0;
+            while (fs.existsSync(`${config.folder}${req.query.path}${fileName}`)) {
+                i++;
+                let extension = pathlib.extname(`${config.folder}${req.query.path}${fileName}`);
+                let name = pathlib.basename(`${config.folder}${req.query.path}${fileName}`, extension)
+                fileName = `${name} (${i})${extension}`;
+            }
+        }
+        cb(null, fileName);
     },
 });
 
@@ -273,8 +293,6 @@ config.permissions.upload ?
                 })
                 return
             }
-
-            console.log(`${config.folder}${path}`);
 
             if (!fs.existsSync(`${config.folder}${path}`)) {
                 res.status(400);
