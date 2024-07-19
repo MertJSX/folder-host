@@ -550,7 +550,6 @@ config.permissions.delete ?
         }
 
         if (oldFilepath === newFilepath) {
-            console.log("Forbidden! Path locations are same!".red);
             res.status(400);
             res.json({ err: "Same location!" })
             return
@@ -593,6 +592,11 @@ config.permissions.delete ?
         console.log(fs.existsSync(`${config.folder}${oldFilepath}`));
 
         if (type === "move") {
+            if (fs.existsSync(`${config.folder}${newFilepath}${oldFileName}`)) {
+                res.status(520);
+                res.json({ err: "The destination already has a file named!" });
+                return;
+            }
             fs.renameSync(`${config.folder}${oldFilepath}`, `${config.folder}${newFilepath}${oldFileName}`);
         } else {
             fs.renameSync(`${config.folder}${oldFilepath}`, `${config.folder}${newFilepath}`);
