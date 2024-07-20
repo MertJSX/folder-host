@@ -57,7 +57,7 @@ const convertStringToBytes = function (sizeString) {
   return parseFloat(value) * Math.pow(1024, index);
 }
 
-function byteSize(str) {
+function getStringSize(str) {
   return new Blob([str]).size;
 }
 
@@ -158,6 +158,15 @@ const getTotalSize = function (directoryPath, stringOutput) {
   }
 }
 
+const getRemainingFolderSpace = (config) => {
+  console.log("sex");
+  let maxSize = convertStringToBytes(config.storage_limit);
+  let folderSize = getTotalSize(config.folder, false);
+  let remainingSpace = maxSize - folderSize;
+  console.log(`${maxSize} - ${folderSize} = ${remainingSpace}`);
+  return remainingSpace;
+}
 
 
-module.exports = { getTotalSize, getDirItems, getParent, replacePathPrefix, removeDir, convertStringToBytes, byteSize };
+
+module.exports = { getTotalSize, getDirItems, getParent, replacePathPrefix, removeDir, convertStringToBytes, getStringSize, getRemainingFolderSpace };
