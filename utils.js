@@ -159,14 +159,12 @@ const getTotalSize = function (directoryPath, stringOutput) {
 }
 
 const getRemainingFolderSpace = (config) => {
-  console.log("sex");
   let maxSize = convertStringToBytes(config.storage_limit);
   let folderSize = getTotalSize(config.folder, false);
   let remainingSpace = maxSize - folderSize;
-  console.log(`${maxSize} - ${folderSize} = ${remainingSpace}`);
   return remainingSpace;
 }
 
 
 
-module.exports = { getTotalSize, getDirItems, getParent, replacePathPrefix, removeDir, convertStringToBytes, getStringSize, getRemainingFolderSpace };
+module.exports = { getTotalSize, getDirItems, getParent, replacePathPrefix, removeDir, convertStringToBytes, getStringSize, getRemainingFolderSpace, convertBytes };
