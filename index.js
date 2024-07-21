@@ -11,7 +11,9 @@ const {
     replacePathPrefix,
     removeDir,
     convertStringToBytes,
-    byteSize
+    getStringSize,
+    getRemainingFolderSpace,
+    convertBytes
 } = require("./utils");
 const cors = require("cors");
 const pathlib = require("path");
@@ -48,6 +50,7 @@ const storage = multer.diskStorage({
     filename: function (req, file, cb) {
         let path = req.query.path;
         let fileName = file.originalname;
+        let changedName = file.originalname;
 
         console.log(fileName);
 
@@ -59,18 +62,16 @@ const storage = multer.diskStorage({
 
         if (fs.existsSync(`${config.folder}${req.query.path}${fileName}`)) {
             let i = 0;
-            while (fs.existsSync(`${config.folder}${req.query.path}${fileName}`)) {
+            while (fs.existsSync(`${config.folder}${req.query.path}${changedName}`)) {
                 i++;
                 let extension = pathlib.extname(`${config.folder}${req.query.path}${fileName}`);
                 let name = pathlib.basename(`${config.folder}${req.query.path}${fileName}`, extension)
-                fileName = `${name} (${i})${extension}`;
+                changedName = `${name} (${i})${extension}`;
             }
         }
-        cb(null, fileName);
+        cb(null, changedName);
     },
 });
-
-const upload = multer({ storage: storage })
 
 // Get config data on start
 
@@ -109,12 +110,11 @@ app.use((req, res, next) => {
 
 
 // Get folder size on start
-
 console.log("Total size:".green);
-console.log(getTotalSize(config.folder));
-
 if (config.storage_limit) {
-    console.log(`\n${convertStringToBytes(config.storage_limit)}`);
+    console.log(`${getTotalSize(config.folder)} / ${config.storage_limit}`);
+} else {
+    console.log(getTotalSize(config.folder));
 }
 
 config.password ?
@@ -282,7 +282,7 @@ config.permissions.download ?
 
 config.permissions.upload ?
     app.post("/upload",
-        (req, res, next) => {
+        (req, res) => {
 
             let path = req.query.path;
 
@@ -306,14 +306,26 @@ config.permissions.upload ?
                     return;
                 }
             }
-            next()
-        },
-        upload.single("file"),
-        (req, res) => {
 
-            res.status(200);
-            res.json({ response: "Successfully uploaded!" })
+            let remainingFreeSpace = getRemainingFolderSpace(config);
 
+            const upload = multer({ storage: storage, limits: { fileSize: remainingFreeSpace } }).single("file")
+
+            upload(req, res, (err) => {
+                if (err.code === "LIMIT_FILE_SIZE") {
+                    console.log(err);
+                    res.status(413);
+                    res.json({ err: `File too large! Remaining free space is: ${convertBytes(remainingFreeSpace)}` })
+                    return
+                }
+                if (err) {
+                    res.status(520);
+                    res.json({ err: "Unknown error!" })
+                    return
+                }
+                res.status(200);
+                res.json({ response: "Successfully uploaded!" })
+            })
         }) : console.log("/upload".yellow + " cancelled!".gray)
 
 
@@ -408,7 +420,7 @@ config.permissions.delete ?
                     console.log(`Total: ${totalSize} > Max: ${bin_storage_limit}`);
 
                     if (totalSize > bin_storage_limit) {
-                        res.status(520)
+                        res.status(413)
                         res.json({ err: "This item exceeds the maximum recovery bin size." })
                         return;
                     }
@@ -435,7 +447,7 @@ config.permissions.delete ?
         let type = req.query.type; // create or change
 
         console.log("New content size is: ".yellow);
-        console.log(byteSize(content));
+        console.log(getStringSize(content));
 
         // Check permissions
 
