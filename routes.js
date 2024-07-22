@@ -97,7 +97,6 @@ config.permissions.read_directories ?
         }
 
         // Validation to avoid errors
-
         if (!fs.existsSync(`${config.folder}${path}`)) {
             res.status(200);
             res.json({ err: "Wrong dirpath!" })
@@ -128,8 +127,6 @@ config.permissions.read_directories ?
         } else if (path === "/" && !config.storage_limit) {
             directoryInfo.storage_limit = "UNLIMITED"
         }
-
-        console.log(`${config.folder}${path}`);
 
         let data = getDirItems(`${config.folder}${path}`, mode, config);
         let isEmpty = false;
@@ -291,7 +288,7 @@ config.permissions.delete ?
         let itemName;
         let recovery_bin = config.recovery_bin;
 
-        console.log("Recovery bin: " + recovery_bin);
+        // console.log("Recovery bin: " + recovery_bin);
 
         if (req.query.path) {
             path = req.query.path;
