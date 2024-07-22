@@ -52,9 +52,9 @@ if (!config.folder) {
 
 app.use(cors());
 app.use(express.json());
-app.use("/api",routes)
+app.use("/api", routes)
 
-app.use("/api",(req, res, next) => {
+app.use("/api", (req, res, next) => {
     console.log(req.query);
     if (config.password) {
         if (req.query.password !== config.password) {
@@ -66,10 +66,10 @@ app.use("/api",(req, res, next) => {
     next()
 })
 
-app.use(express.static(path.join(__dirname ,"client")))
+app.use(express.static(path.join(__dirname, "client")))
 
 app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname , "client", 'index.html'));
+    res.sendFile(path.join(__dirname, "client", 'index.html'));
 });
 
 // Get folder size on start
