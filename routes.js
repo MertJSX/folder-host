@@ -312,10 +312,7 @@ config.permissions.delete ?
                 return;
             }
             if (item.isDirectory() && !recovery_bin) {
-                console.log(`${config.folder}${path}`);
-
                 removeDir(`${config.folder}${path}`);
-
                 res.status(200)
                 res.json({ response: "Deleted!" })
                 return;
@@ -341,10 +338,6 @@ config.permissions.delete ?
                     itemName = path.split("/").pop();
                 }
 
-                // Should be changed!
-
-                console.log(`./recovery_bin/${itemName}`);
-
                 if (fs.existsSync(`./recovery_bin/${itemName}`)) {
                     let i = 0;
                     while (fs.existsSync(`./recovery_bin/${itemName}`)) {
@@ -368,8 +361,6 @@ config.permissions.delete ?
 
                     let sizeOfRecoveryBin = getTotalSize("./recovery_bin", false);
                     let totalSize = sizeOfFileToBeDeleted + sizeOfRecoveryBin;
-
-                    console.log(`Total: ${totalSize} > Max: ${bin_storage_limit}`);
 
                     if (totalSize > bin_storage_limit) {
                         res.status(413)
@@ -533,9 +524,6 @@ config.permissions.delete ?
             return;
         }
 
-        console.log(`${config.folder}${newFilepath}`);
-        console.log(fs.existsSync(`${config.folder}${newFilepath}`));
-
         if (!fs.existsSync(`${config.folder}${newFilepath}`) && type === "move") {
             res.status(400)
             res.json({ err: "The file doesn't exist!" })
@@ -558,9 +546,6 @@ config.permissions.delete ?
         } else {
             oldFileName = oldFilepath.split("/").pop();
         }
-
-        console.log(`${config.folder}${oldFilepath}`);
-        console.log(fs.existsSync(`${config.folder}${oldFilepath}`));
 
         if (type === "move") {
             if (fs.existsSync(`${config.folder}${newFilepath}${oldFileName}`)) {
