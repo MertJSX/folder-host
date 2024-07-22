@@ -1,6 +1,7 @@
 const fs = require("fs")
 const path = require("path")
 const {DirItem} = require("./dir_item");
+const fastFolderSizeSync = require('fast-folder-size/sync')
 
 const getAllFiles = function (dirPath, arrayOfFiles) {
   let files = fs.readdirSync(dirPath)
@@ -133,24 +134,11 @@ const getDirItems = function (dirPath, mode, config) {
 }
 
 const getTotalSize = function (directoryPath, stringOutput) {
-  const arrayOfFiles = getAllFiles(directoryPath)
-
-  if (stringOutput === undefined) {
-    stringOutput = true;
-  }
-
-  //console.log(arrayOfFiles);
-
-  let totalSize = 0
-
-  arrayOfFiles.forEach(function (filePath) {
-    totalSize += fs.statSync(filePath).size
-  })
-
-  // console.log(directoryPath);
-  // console.log(totalSize);
-  // console.log(convertBytes(totalSize));
-
+  
+  stringOutput = stringOutput || true;
+  
+  const totalSize = fastFolderSizeSync(directoryPath)
+  
   if (stringOutput) {
     return convertBytes(totalSize);
   } else {
