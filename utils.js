@@ -1,7 +1,9 @@
-const fs = require("fs")
-const path = require("path")
-const {DirItem} = require("./dir_item");
-const fastFolderSizeSync = require('fast-folder-size/sync')
+const fs = require("fs");
+const path = require("path");
+const yauzl = require('yauzl');
+const { mkdirp } = require('mkdirp');
+const { DirItem } = require("./dir_item");
+const fastFolderSizeSync = require('fast-folder-size/sync');
 
 const getAllFiles = function (dirPath, arrayOfFiles) {
   let files = fs.readdirSync(dirPath)
@@ -43,18 +45,14 @@ const convertBytes = function (bytes) {
 const convertStringToBytes = function (sizeString) {
   const sizes = ["Bytes", "KB", "MB", "GB", "TB"];
 
-  // Split the input into numerical value and unit
   const [value, unit] = sizeString.split(" ");
 
-  // Find the index of the unit in the sizes array
   const index = sizes.indexOf(unit);
 
-  // If unit is not found or value is not a number, return NaN
   if (index === -1 || isNaN(value)) {
-      return 0;
+    return 0;
   }
 
-  // Calculate the bytes
   return parseFloat(value) * Math.pow(1024, index);
 }
 
@@ -64,15 +62,15 @@ function getStringSize(str) {
 
 function removeDir(directoryPath) {
   if (fs.existsSync(directoryPath)) {
-      fs.readdirSync(directoryPath).forEach((file, index) => {
-          const curPath = path.join(directoryPath, file);
-          if (fs.lstatSync(curPath).isDirectory()) {
-              removeDir(curPath);
-          } else {
-              fs.unlinkSync(curPath);
-          }
-      });
-      fs.rmdirSync(directoryPath);
+    fs.readdirSync(directoryPath).forEach((file, index) => {
+      const curPath = path.join(directoryPath, file);
+      if (fs.lstatSync(curPath).isDirectory()) {
+        removeDir(curPath);
+      } else {
+        fs.unlinkSync(curPath);
+      }
+    });
+    fs.rmdirSync(directoryPath);
   }
 }
 
@@ -96,6 +94,84 @@ function getParent(filePath) {
   }
 }
 
+function extractFiles(zipFilePath, outputDir, totalUncompressedSize, socket, io) {
+  let extractedBytes = 0;
+  let lastPercentage = 0;
+
+  yauzl.open(zipFilePath, { lazyEntries: true }, (err, zipfile) => {
+    if (err) {
+      console.log("Unknown error.");
+      throw err
+    };
+
+    zipfile.readEntry();
+
+    zipfile.on('entry', (entry) => {
+      const fullPath = path.join(outputDir, entry.fileName);
+
+      if (/\/$/.test(entry.fileName)) {
+        mkdirp(fullPath).then(() => {
+          zipfile.readEntry();
+        }).catch((err) => {
+          if (socket) {
+            io.to(socket.id).emit({
+              err: "Unknown error while unzipping!"
+            })
+          }
+          console.error('An error occurred while ensuring directory exists:', err);
+          return
+        });
+      } else {
+        // Dosya
+        mkdirp(path.dirname(fullPath)).then(() => {
+          zipfile.openReadStream(entry, (err, readStream) => {
+            if (err) throw err;
+
+            readStream.on('data', (chunk) => {
+              extractedBytes += chunk.length;
+              if (socket) {
+                const percentage = Math.floor((extractedBytes / totalUncompressedSize) * 100);
+                if (percentage > lastPercentage) {
+                  let = lastPercentage = percentage;
+                  console.log(`Progress: ${percentage}%`);
+                  io.to(socket.id).emit("unzip-progress", {
+                    progress: percentage
+                  })
+                }
+              }
+
+            });
+
+            readStream.on('end', () => {
+              zipfile.readEntry();
+            });
+
+            readStream.pipe(fs.createWriteStream(fullPath));
+          });
+        }).catch((err) => {
+          console.log("We can't extract zip files with passwords.");
+          console.error('An error occurred while ensuring directory exists:', err);
+          zipfile.readEntry();
+        });
+      }
+    });
+
+    zipfile.on('end', () => {
+      console.log('Extraction completed.');
+      io.to(socket.id).emit("unzip-completed", {
+        message: "Successfully completed!"
+      })
+    });
+
+    zipfile.on('error', (err) => {
+      io.to(socket.id).emit("error", {
+        err: "Unknown error!"
+      })
+      console.error('An error occurred:', err);
+    });
+  });
+}
+
 
 const getDirItems = function (dirPath, mode, config) {
   let files = fs.readdirSync(dirPath, { withFileTypes: true })
@@ -109,7 +185,7 @@ const getDirItems = function (dirPath, mode, config) {
     let parentPath;
 
     if (mode === "Quality mode" && isDirectory) {
-      size = getTotalSize(dirPath+ file.name);
+      size = getTotalSize(dirPath + file.name);
     }
 
     if (file.parentPath === config.folder + "/") {
@@ -123,8 +199,8 @@ const getDirItems = function (dirPath, mode, config) {
     let item;
 
     mode === "Quality mode" && isDirectory ?
-    item = new DirItem(file.name, parentPath, `${parentPath}${file.name}`, isDirectory, fileStats.birthtime, fileStats.mtime, size, index)
-    : item = new DirItem(file.name, parentPath, `${parentPath}${file.name}`, isDirectory, fileStats.birthtime, fileStats.mtime, convertBytes(size), index );
+      item = new DirItem(file.name, parentPath, `${parentPath}${file.name}`, isDirectory, fileStats.birthtime, fileStats.mtime, size, index)
+      : item = new DirItem(file.name, parentPath, `${parentPath}${file.name}`, isDirectory, fileStats.birthtime, fileStats.mtime, convertBytes(size), index);
 
 
     arrayOfItems.push(item)
@@ -133,12 +209,10 @@ const getDirItems = function (dirPath, mode, config) {
   return arrayOfItems
 }
 
-const getTotalSize = function (directoryPath, stringOutput) {
-  
-  stringOutput = stringOutput || true;
-  
+const getTotalSize = function (directoryPath, stringOutput = true) {
+
   const totalSize = fastFolderSizeSync(directoryPath)
-  
+
   if (stringOutput) {
     return convertBytes(totalSize);
   } else {
@@ -155,4 +229,15 @@ const getRemainingFolderSpace = (config) => {
 
 
 
-module.exports = { getTotalSize, getDirItems, getParent, replacePathPrefix, removeDir, convertStringToBytes, getStringSize, getRemainingFolderSpace, convertBytes };
+module.exports = {
+  getTotalSize,
+  getDirItems,
+  getParent,
+  replacePathPrefix,
+  removeDir,
+  convertStringToBytes,
+  getStringSize,
+  getRemainingFolderSpace,
+  convertBytes,
+  extractFiles
+};
