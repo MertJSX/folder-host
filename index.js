@@ -1,5 +1,4 @@
 const express = require("express");
-const app = express();
 const fs = require("fs");
 const colors = require("colors");
 const yaml = require("js-yaml");
@@ -10,6 +9,12 @@ const {
 } = require("./utils");
 const cors = require("cors");
 const routes = require("./routes");
+
+const app = express();
+const {createServer} = require("http");
+const {Server} = require("socket.io");
+const httpServer = createServer(app);
+const io = new Server(httpServer, {cors: {origin: "*"}});
 let config;
 let abort = false;
 
@@ -50,9 +55,22 @@ if (!config.folder) {
     }, 3000);
 }
 
+io.use((socket, next) => {
+    const password = socket.handshake.auth.password;
+    if (password !== config.password) {
+      const err = new Error('Incorrect password');
+      err.data = { content: "Your password is incorrect." }; 
+      return next(err);
+    }
+    next();
+});
+
+
+const socketEvents = require('./socketEvents');
+socketEvents(io, config);
+
 app.use(cors());
 app.use(express.json());
-app.use("/api", routes)
 
 app.use("/api", (req, res, next) => {
     console.log(req.query);
@@ -66,11 +84,13 @@ app.use("/api", (req, res, next) => {
     next()
 })
 
-app.use(express.static(path.join(__dirname, "client")))
+app.use("/api", routes)
+app.use("/", express.static(path.join(__dirname, "client")))
 
-app.get('*', (req, res) => {
+app.get("*", (req, res) => {
     res.sendFile(path.join(__dirname, "client", 'index.html'));
 });
+
 
 // Get folder size on start
 console.log("Total size:".green);
@@ -81,7 +101,7 @@ if (config.storage_limit) {
 }
 
 if (!abort) {
-    app.listen(config.port, () => {
+    httpServer.listen(config.port, () => {
         console.log(`The server has started on port ${config.port}!`);
     })
 }
