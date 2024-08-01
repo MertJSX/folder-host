@@ -231,39 +231,6 @@ config.permissions.download ?
 
     }) : console.log("/api/download".yellow + " cancelled!".gray)
 
-config.permissions.unzip ?
-    routes.get("/unzip", (req, res) => {
-
-        let path;
-
-        if (req.query.filepath) {
-            path = req.query.filepath;
-        } else {
-            res.status(400);
-            res.json({
-                err: "Bad request!"
-            })
-            return
-        }
-
-        if (!fs.existsSync(`${config.folder}${path}`)) {
-            res.status(400);
-            res.json({ err: "Wrong filepath!" })
-            return;
-        } else {
-            let item = fs.statSync(`${config.folder}${path}`);
-            if (item.isDirectory()) {
-                res.status(422);
-                res.json({ err: "You can't unzip a directory!" })
-                return;
-            }
-        }
-
-
-        res.status(200);
-        res.download(`${config.folder}${path}`)
-
-    }) : console.log("/api/unzip".yellow + " cancelled!".gray)
 
 config.permissions.upload ?
     routes.post("/upload",
