@@ -11,10 +11,10 @@ const cors = require("cors");
 const routes = require("./routes");
 
 const app = express();
-const {createServer} = require("http");
-const {Server} = require("socket.io");
+const { createServer } = require("http");
+const { Server } = require("socket.io");
 const httpServer = createServer(app);
-const io = new Server(httpServer, {cors: {origin: "*"}});
+const io = new Server(httpServer, { cors: { origin: "*" } });
 let config;
 let abort = false;
 
@@ -56,13 +56,30 @@ if (!config.folder) {
 }
 
 io.use((socket, next) => {
+    const username = socket.handshake.auth.username;
     const password = socket.handshake.auth.password;
-    if (password !== config.password) {
-      const err = new Error('Incorrect password');
-      err.data = { content: "Your password is incorrect." }; 
-      return next(err);
-    }
     next();
+
+    if (!socket.handshake.auth.username || !socket.handshake.auth.password) {
+        const err = new Error('Bad request!');
+        return next(err);
+    }
+    function findUser(account) {
+        return account.name === username
+    }
+    let account = config.accounts.find(findUser);
+
+    if (account !== undefined) {
+        if (password !== account.password) {
+            const err = new Error('Incorrect password');
+            err.data = { content: "Your password is incorrect." };
+            return next(err);
+        }
+    } else {
+        const err = new Error('Wrong username!');
+        err.data = { content: "That account does not exist." };
+        return next(err);
+    }
 });
 
 
@@ -73,13 +90,29 @@ app.use(cors());
 app.use(express.json());
 
 app.use("/api", (req, res, next) => {
-    console.log(req.query);
-    if (config.password) {
-        if (req.query.password !== config.password) {
+    console.log(req.body);
+
+    if (!req.body.username || !req.body.password) {
+        res.status(400);
+        res.json({ err: "Bad request!" })
+        return
+    }
+    function findUser(account) {
+        return account.name === req.body.username
+    }
+    let account = config.accounts.find(findUser);
+    console.log(account);
+
+    if (account !== undefined) {
+        if (req.body.password !== account.password) {
             res.status(401);
             res.json({ err: "Wrong password!" })
             return
         }
+    } else {
+        res.status(401);
+        res.json({ err: "Wrong username!" })
+        return
     }
     next()
 })
