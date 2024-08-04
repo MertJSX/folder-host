@@ -73,16 +73,18 @@ const storage = multer.diskStorage({
 
 
 config.password ?
-    routes.get("/verify-password", (req, res) => {
+    routes.post("/verify-password", (req, res) => {
+        console.log(req.body);
+        
         res.status(200);
         res.json({
-            res: "Password is correct!"
+            res: "Verified!"
         })
     })
     : console.log("/api/verify-password".yellow + " cancelled!".gray)
 
 config.permissions.read_directories ?
-    routes.get("/read-dir", (req, res) => {
+    routes.post("/read-dir", (req, res) => {
 
         let path = "";
         let mode = req.query.mode === "Optimized mode" ?
@@ -147,11 +149,12 @@ config.permissions.read_directories ?
 
 
 config.permissions.read_files ?
-    routes.get("/read-file", (req, res) => {
+    routes.post("/read-file", (req, res) => {
 
         let path;
         let itemStat;
         let fileName;
+        let lastModified;
 
         if (req.query.filepath) {
             path = req.query.filepath;
@@ -169,6 +172,7 @@ config.permissions.read_files ?
             return;
         } else {
             itemStat = fs.statSync(`${config.folder}${path}`);
+            lastModified = itemStat.mtime;
             if (itemStat.isDirectory()) {
                 res.status(200);
                 res.json({ err: "Filepath is a directory!" })
@@ -189,16 +193,15 @@ config.permissions.read_files ?
                 res.status(200);
                 res.json({ err: "Unknown error!" })
             } else {
-                +
-                    res.status(200);
-                res.json({ data: data, res: "Successfully readed!", title: fileName })
+                res.status(200);
+                res.json({ data: data, res: "Successfully readed!", title: fileName, lastModified: lastModified, writePermission: config.permissions.change })
             }
         });
     }) : console.log("/api/read-file".yellow + " cancelled!".gray)
 
 
 config.permissions.download ?
-    routes.get("/download", (req, res) => {
+    routes.post("/download", (req, res) => {
 
         let path;
 
@@ -230,6 +233,7 @@ config.permissions.download ?
         res.download(`${config.folder}${path}`)
 
     }) : console.log("/api/download".yellow + " cancelled!".gray)
+
 
 
 config.permissions.upload ?
@@ -282,7 +286,7 @@ config.permissions.upload ?
 
 
 config.permissions.delete ?
-    routes.get("/delete", (req, res) => {
+    routes.post("/delete", (req, res) => {
 
         let path;
         let itemName;
@@ -388,6 +392,7 @@ config.permissions.delete ?
         let itemName = req.body.itemName;
         let content = req.body.content;
         let type = req.query.type; // create or change
+        let lastModified;
 
         console.log("New content size is: ".yellow);
         console.log(getStringSize(content));
@@ -405,7 +410,7 @@ config.permissions.delete ?
         }
 
         if (filepath && type) {
-            if (type === "create" && (itemType === "file" || itemType === "folder")) {
+            if (type === "create" && (itemType === "file" || itemType === "folder") && (itemName !== "" || itemName !== undefined || itemName !== null)) {
                 type = "create";
             } else if (type === "change" && content !== undefined) {
                 type = "change"
@@ -432,7 +437,7 @@ config.permissions.delete ?
                 res.json({ err: "Already exist!" })
                 return;
             }
-            if (itemType !== "folder" && !fs.statSync(`${config.folder}${filepath}/${itemName}`).isDirectory()) {
+            if (itemType !== "folder" && !fs.statSync(`${config.folder}${filepath}/${itemName}`)) {
                 res.status(400);
                 res.json({ err: "Already exist!" })
                 return;
@@ -453,8 +458,9 @@ config.permissions.delete ?
             res.json({ response: "File created!" })
         } else {
             fs.writeFileSync(`${config.folder}${filepath}`, content);
+            lastModified = fs.statSync(`${config.folder}${filepath}`);
             res.status(200);
-            res.json({ response: "Saved!" })
+            res.json({ response: "Saved!", lastModified: lastModified.mtime })
         }
 
 
@@ -463,7 +469,7 @@ config.permissions.delete ?
 
 !config.permissions.move && !config.permissions.rename ?
     console.log("/api/rename-file".yellow + " cancelled!".gray)
-    : routes.get("/rename-file", (req, res) => {
+    : routes.post("/rename-file", (req, res) => {
 
         let oldFilepath = req.query.oldFilepath;
         let oldFileName;
