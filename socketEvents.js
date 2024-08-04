@@ -2,7 +2,9 @@ const fs = require('fs');
 const path = require('path');
 const yauzl = require('yauzl');
 const colors = require("colors");
-const {extractFiles, getRemainingFolderSpace} = require("./utils");
+const chokidar = require('chokidar');
+const { extractFiles, getRemainingFolderSpace } = require("./utils");
+const watchers = new Map();
 
 module.exports = function (io, config) {
     io.on('connection', (socket) => {
@@ -11,8 +13,55 @@ module.exports = function (io, config) {
 
         console.log('User connected!'.green);
 
+        const currentWatchPath = socket.handshake.auth.watch
+        const watchFile = `${config.folder}${currentWatchPath}`;
+
+        if (watchFile) {
+            const watcher = chokidar.watch(watchFile, {
+                persistent: true,
+            });
+
+            watcher.on('change', (path) => {
+                let fileContent = "";
+                fs.readFile(watchFile, "utf8", (err, data) => {
+                    if (err) {
+                        console.log(err);
+                        return
+                    } else {
+                        fileContent = data
+                        socket.emit('file-changed', { path: currentWatchPath, fileContent: fileContent });
+                    }
+                });
+            });
+
+            watchers.set(socket.id, watcher);
+        }
+
         socket.on('disconnect', () => {
             console.log('User disconnected!'.red);
+            const watcher = watchers.get(socket.id);
+            if (watcher) {
+                watcher.close();
+                watchers.delete(socket.id);
+                // console.log(`Stopped watching file for client ${socket.id}`);
+            }
+        });
+
+        socket.on('change-file', (res) => {
+            console.log(config.permissions.change);
+            
+            if (config.permissions.change === false) {
+                
+                io.to(socket.id).emit("error", {
+                    err: "No permission!"
+                })
+                  
+                return
+            }
+            if (fs.existsSync(`${config.folder}${res.path}`)) {
+                fs.writeFileSync(watchFile, res.content);
+                // let lastModified = fs.statSync(`${config.folder}${filepath}`);      
+            }
         });
 
         socket.on('unzip', (res) => {
@@ -25,7 +74,7 @@ module.exports = function (io, config) {
                 let outputDir = `${config.folder}/${nameOfOutputDir}`;
                 let i = 0;
                 if (!fs.existsSync(zipFilePath)) {
-                    io.to(socket.id).emit("error", {err: "Zip file is not existing"})
+                    io.to(socket.id).emit("error", { err: "Zip file is not existing" })
                     return
                 }
                 while (fs.existsSync(outputDir)) {
@@ -36,33 +85,33 @@ module.exports = function (io, config) {
 
                 yauzl.open(zipFilePath, { lazyEntries: true }, (err, zipfile) => {
                     if (err) {
-                        io.to(socket.id).emit("error", {err: "Unknown error!"})
+                        io.to(socket.id).emit("error", { err: "Unknown error!" })
                     }
-                  
+
                     zipfile.readEntry();
-                  
+
                     zipfile.on('entry', (entry) => {
-                      totalUncompressedSize += entry.uncompressedSize;
-                      if (totalUncompressedSize > limit) {
-                        console.log("Limit exceed!");
-                        io.to(socket.id).emit("error", {err: "Not enough space!"})
-                        return
-                      }
-                      zipfile.readEntry();
+                        totalUncompressedSize += entry.uncompressedSize;
+                        if (totalUncompressedSize > limit) {
+                            console.log("Limit exceed!");
+                            io.to(socket.id).emit("error", { err: "Not enough space!" })
+                            return
+                        }
+                        zipfile.readEntry();
                     });
-                  
+
                     zipfile.on('end', () => {
-                      console.log("End");
-                      extractFiles(zipFilePath, outputDir, totalUncompressedSize, socket, io);
+                        console.log("End");
+                        extractFiles(zipFilePath, outputDir, totalUncompressedSize, socket, io);
                     });
-                  
+
                     zipfile.on('error', (err) => {
-                      console.error('An error occurred:', err);
+                        console.error('An error occurred:', err);
                     });
                 });
             } else {
                 console.log("Wrong password!");
-                io.to(socket.id).emit("error", {err: "Password is missing!"})
+                io.to(socket.id).emit("error", { err: "Password is missing!" })
                 return
             }
         });
