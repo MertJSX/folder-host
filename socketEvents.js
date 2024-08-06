@@ -8,15 +8,17 @@ const watchers = new Map();
 
 module.exports = function (io, config) {
     io.on('connection', (socket) => {
+        let account = config.accounts
+            .find((account) => { return account.name === socket.handshake.auth.username })
 
         socket.join(socket.id);
 
         console.log('User connected!'.green);
 
-        const currentWatchPath = socket.handshake.auth.watch
+        const currentWatchPath = socket.handshake.auth.watch;
         const watchFile = `${config.folder}${currentWatchPath}`;
 
-        if (watchFile) {
+        if (watchFile && account.permissions.read_files) {
             const watcher = chokidar.watch(watchFile, {
                 persistent: true,
             });
@@ -48,24 +50,21 @@ module.exports = function (io, config) {
         });
 
         socket.on('change-file', (res) => {
-            console.log(config.permissions.change);
-            
-            if (config.permissions.change === false) {
-                
+            if (!account.permissions.change) {
+
                 io.to(socket.id).emit("error", {
                     err: "No permission!"
                 })
-                  
+
                 return
             }
             if (fs.existsSync(`${config.folder}${res.path}`)) {
                 fs.writeFileSync(watchFile, res.content);
-                // let lastModified = fs.statSync(`${config.folder}${filepath}`);      
             }
         });
 
         socket.on('unzip', (res) => {
-            if (res.password === config.password) {
+            if (account.permissions.read_files) {
                 let totalUncompressedSize = 0;
                 let limit = getRemainingFolderSpace(config);
                 let zipFilePath = `${config.folder}${res.path}`;
@@ -110,8 +109,7 @@ module.exports = function (io, config) {
                     });
                 });
             } else {
-                console.log("Wrong password!");
-                io.to(socket.id).emit("error", { err: "Password is missing!" })
+                io.to(socket.id).emit("error", { err: "No permission!" })
                 return
             }
         });
