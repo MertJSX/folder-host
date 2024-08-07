@@ -201,7 +201,7 @@ routes.post("/read-file", (req, res) => {
     fs.readFile(`${config.folder}${path}`, "utf8", (err, data) => {
         if (err) {
             console.log(err);
-            res.status(200);
+            res.status(520);
             res.json({ err: "Unknown error!" })
         } else {
             res.status(200);
@@ -459,35 +459,33 @@ routes.post("/write-file", (req, res) => {
     console.log(`${config.folder}${filepath}${itemName}`);
 
     if (fs.existsSync(`${config.folder}${filepath}/${itemName}`) && type === "create") {
-        if (itemType === "folder" && fs.statSync(`${config.folder}${filepath}/${itemName}`).isDirectory()) {
-            res.status(400);
-            res.json({ err: "Already exist!" })
-            return;
-        }
-        if (itemType !== "folder" && !fs.statSync(`${config.folder}${filepath}/${itemName}`)) {
-            res.status(400);
-            res.json({ err: "Already exist!" })
-            return;
-        }
+        res.status(400);
+        res.json({ err: "Already exist!" })
+        return;
     } else if (!fs.existsSync(`${config.folder}${filepath}`) && type === "change") {
         res.status(400)
-        res.json({ err: "The file doesn't exist!" })
+        res.json({ err: "The folder doesn't exist!" })
         return;
     }
-
     if (type === "create" && itemType === "folder" && itemName !== undefined) {
         fs.mkdirSync(`${config.folder}${filepath}${itemName}`)
         res.status(200);
         res.json({ response: "Folder created!" })
+        return;
     } else if (type === "create" && itemType === "file" && itemName !== undefined) {
         fs.writeFileSync(`${config.folder}${filepath}${itemName}`, "");
         res.status(200);
         res.json({ response: "File created!" })
-    } else {
+        return;
+    } else if (type === "change") {
         fs.writeFileSync(`${config.folder}${filepath}`, content);
         lastModified = fs.statSync(`${config.folder}${filepath}`);
         res.status(200);
         res.json({ response: "Saved!", lastModified: lastModified.mtime })
+        return;
+    } else {
+        res.status(520)
+        res.json({err: "Unknown error!"})
     }
 })
 
