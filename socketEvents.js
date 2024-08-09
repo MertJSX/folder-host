@@ -18,7 +18,7 @@ module.exports = function (io, config) {
         const currentWatchPath = socket.handshake.auth.watch;
         const watchFile = `${config.folder}${currentWatchPath}`;
 
-        if (watchFile && account.permissions.read_files) {
+        if (socket.handshake.auth.watch && account.permissions.read_files) {
             const watcher = chokidar.watch(watchFile, {
                 persistent: true,
             });
@@ -64,7 +64,7 @@ module.exports = function (io, config) {
         });
 
         socket.on('unzip', (res) => {
-            if (account.permissions.read_files) {
+            if (account.permissions.unzip) {
                 let totalUncompressedSize = 0;
                 let limit = getRemainingFolderSpace(config);
                 let zipFilePath = `${config.folder}${res.path}`;
