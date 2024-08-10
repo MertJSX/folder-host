@@ -153,7 +153,6 @@ routes.post("/read-dir", (req, res) => {
     })
 })
 
-
 routes.post("/read-file", (req, res) => {
 
     let path;
@@ -210,11 +209,8 @@ routes.post("/read-file", (req, res) => {
     });
 })
 
-
 routes.post("/download", (req, res) => {
-
     let path;
-
     if (!req.body.account.permissions.download) {
         res.status(403)
         res.json({ err: "No permission!" })
@@ -250,14 +246,12 @@ routes.post("/download", (req, res) => {
 
 })
 
-
-
 routes.post("/upload", (req, res) => {
 
     let path = req.query.path;
 
     console.log(req.body.account);
-    
+
 
     if (!req.body.account.permissions.upload) {
         res.status(403)
@@ -308,14 +302,11 @@ routes.post("/upload", (req, res) => {
     })
 })
 
-
 routes.post("/delete", (req, res) => {
 
     let path;
     let itemName;
     let recovery_bin = config.recovery_bin;
-
-    // console.log("Recovery bin: " + recovery_bin);
 
     if (!req.body.account.permissions.delete) {
         res.status(403)
@@ -411,7 +402,6 @@ routes.post("/delete", (req, res) => {
 
 })
 
-
 routes.post("/write-file", (req, res) => {
 
     let filepath = req.query.path;
@@ -485,10 +475,57 @@ routes.post("/write-file", (req, res) => {
         return;
     } else {
         res.status(520)
-        res.json({err: "Unknown error!"})
+        res.json({ err: "Unknown error!" })
     }
 })
 
+routes.post("/create-copy", (req, res) => {
+
+    let path = req.query.path;
+    let parentPath;
+    let basename;
+    let copyPath;
+    let extname = null;
+
+    // Check permissions
+
+    if (!req.body.account.permissions.copy) {
+        res.status(403);
+        res.json({ err: "No permission!" })
+        return
+    }
+
+    if (!fs.existsSync(`${config.folder}${path}`)) {
+        res.status(400)
+        res.json({ err: "The item doesn't exist!" })
+        return;
+    } else {
+        parentPath = pathlib.dirname(path);
+        basename = `${pathlib.basename(path)} - Copy`;
+        let pathStat = fs.statSync(`${config.folder}${path}`);
+        let index = 0;
+        if (pathStat.isFile()) {
+            extname = pathlib.extname(path);
+            copyPath = `${parentPath}/${basename}${extname}`;
+            while (fs.existsSync(`${config.folder}${copyPath}`)) {
+                index++;
+                copyPath = `${parentPath}/${basename} (${index})${extname}`;
+            }
+            fs.cpSync(`${config.folder}${path}`, `${config.folder}${copyPath}`);
+        } else {
+            copyPath = `${parentPath}/${basename}`;
+            while (fs.existsSync(`${config.folder}${copyPath}`)) {
+                index++;
+                copyPath = `${parentPath}/${basename} (${index})`;
+            }
+            fs.cpSync(`${config.folder}${path}`, `${config.folder}${copyPath}`, { recursive: true });
+        }
+    }
+
+    
+    res.status(200);
+    res.json({ response: "Copied!" })
+})
 
 routes.post("/rename-file", (req, res) => {
 
