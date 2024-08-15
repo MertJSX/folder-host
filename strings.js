@@ -10,50 +10,48 @@ folder: "./test"
 # You can remove it if you trust users.
 storage_limit: "20 GB"
 
-# This is password for access. You can delete it if you want, but it's good to have a password.
-password: "123"
+# This is secret encryption key to create encrypted tokens.
+secret_encryption_key: "you must change it" # Example: 5asdasd1asd
 
-# You can manage user permissions.
-permissions:
-    read_directories: true
-    read_files: true
-    create: true
-    change: true
-    delete: true
-    move: true
-    download: true
-    upload: true
-    rename: true
+# This is secret json web token key to create tokens.
+secret_jwt_key: "you must change it" # Example: 5asdasd1asd
 
-# This is not working for now. (TEST)
+# You can create your own accounts for access
 accounts:
+    # All users should have unique name
     - name: "admin"
-      password: "wQcl6651gqR33@@@@$"
+      # user password
+      password: "12345"
+      # You can manage user permissions.
       permissions:
-          - read_directories
-          - read_files
-          - create
-          - change
-          - delete
-          - move
-          - download
-          - upload
-          - rename
+        read_directories: true
+        read_files: true
+        create: true
+        change: true
+        delete: true
+        move: true
+        download: true
+        upload: true
+        rename: true
+        unzip: true
+        copy: true
     - name: "moderator"
-      password: "lJsY1186431ax05"
+      password: "123"
       permissions:
-          - read_directories
-          - read_files
-          - create
-          - change
-          - delete
-          - move
-          - download
-          - upload
-          - rename
+        read_directories: true
+        read_files: true
+        create: false
+        change: false
+        delete: false
+        move: false
+        download: false
+        upload: false
+        rename: false
+        unzip: false
+        copy: false
 
 # Holds deleted files. Accidentally, you might delete files that you don't want to delete.
-recovery_bin: true
+recovery_bin: false
 # Optionally you can limit recovery_bin storage. You can remove it if you want.
 # bin_storage_limit: "10 GB"
 `,
