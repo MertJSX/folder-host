@@ -3,13 +3,18 @@ const path = require('path');
 const yauzl = require('yauzl');
 const colors = require("colors");
 const chokidar = require('chokidar');
+const CryptoJS = require("crypto-js");
+const jwt = require('jsonwebtoken');
 const { extractFiles, getRemainingFolderSpace } = require("./utils");
 const watchers = new Map();
 
 module.exports = function (io, config) {
     io.on('connection', (socket) => {
-        let account = config.accounts
-            .find((account) => { return account.name === socket.handshake.auth.username })
+        let account = socket.handshake.auth.account;
+        console.log("Socket account is");
+        
+        console.log(account);
+        
 
         socket.join(socket.id);
 

@@ -2,8 +2,6 @@ const express = require("express");
 const fs = require("fs");
 const colors = require("colors");
 const yaml = require("js-yaml");
-const multer = require('multer');
-const upload = multer();
 const path = require("path");
 const { strings } = require("./strings");
 const {
@@ -11,6 +9,8 @@ const {
 } = require("./utils");
 const cors = require("cors");
 const routes = require("./routes");
+const CryptoJS = require("crypto-js");
+const jwt = require('jsonwebtoken');
 const app = express();
 const { createServer } = require("http");
 const { Server } = require("socket.io");
@@ -57,17 +57,48 @@ if (!config.folder) {
 }
 
 io.use((socket, next) => {
-    const username = socket.handshake.auth.username;
-    const password = socket.handshake.auth.password;
+    let username;
+    let password;
 
-    if (!socket.handshake.auth.username || !socket.handshake.auth.password) {
+    if (!socket.handshake.auth.token) {
         const err = new Error('Bad request!');
         return next(err);
     }
 
+    const token = socket.handshake.auth.token;
+
+    console.log("No errors here");
+
+    let bytes = CryptoJS.AES.decrypt(token, config.secret_encryption_key);
+    bytes = bytes.toString(CryptoJS.enc.Utf8);
+    console.log(bytes);
+    
+    let decoded;
+    try {
+        decoded = jwt.verify(bytes, config.secret_jwt_key);
+    } catch (err) {
+        console.error(err.message);
+        if (err.message === "jwt expired") {
+            res.status(401);
+            res.json({ err: "Session expired!" })
+            return
+        } else {
+            res.status(401);
+            res.json({ err: "Unknown session error!" })
+        }
+    }
+
+    console.log("No errors here");
+    
+
+    username = decoded.name;
+    password = decoded.password;
+
+
     function findUser(account) {
         return account.name === username
     }
+
     let account = config.accounts.find(findUser);
 
     if (account !== undefined) {
@@ -81,6 +112,9 @@ io.use((socket, next) => {
         err.data = { content: "That account does not exist." };
         return next(err);
     }
+
+    socket.handshake.auth.account = account;
+    
     next();
 });
 
@@ -96,18 +130,63 @@ app.use("/api", (req, res, next) => {
     let username;
     let password;
 
-    if ((!req.body.username || !req.body.password) && (!req.headers.username || !req.headers.password)) {
+    if (!req.body.username || !req.body.password) {
+        if (!req.body.token && !req.headers.token) {
+            res.status(400);
+            res.json({ err: "Bad request!" })
+            return
+        }
+    }
+
+    if (req.body.username && req.body.password) {
+        username = req.body.username;
+        password = req.body.password;
+    } else if (req.body.token) {
+        let bytes = CryptoJS.AES.decrypt(req.body.token, config.secret_encryption_key);
+        bytes = bytes.toString(CryptoJS.enc.Utf8);
+        let decoded;
+        try {
+            decoded = jwt.verify(bytes, config.secret_jwt_key);
+            console.log(decoded);
+        } catch (err) {
+            console.error(err.message);
+            if (err.message === "jwt expired") {
+                res.status(401);
+                res.json({ err: "Session expired!" })
+                return
+            } else {
+                res.status(401);
+                res.json({ err: "Unknown session error!" })
+            }
+        }
+        username = decoded.name;
+        password = decoded.password;
+    } else if (req.headers.token) {
+        let bytes = CryptoJS.AES.decrypt(req.headers.token, config.secret_encryption_key);
+        bytes = bytes.toString(CryptoJS.enc.Utf8);
+        let decoded;
+        try {
+            decoded = jwt.verify(bytes, config.secret_jwt_key);
+            console.log(decoded);
+        } catch (err) {
+            console.error(err.message);
+            if (err.message === "jwt expired") {
+                res.status(401);
+                res.json({ err: "Session expired!" })
+                return
+            } else {
+                res.status(401);
+                res.json({ err: "Unknown session error!" })
+            }
+        }
+        username = decoded.name;
+        password = decoded.password;
+    } else {
         res.status(400);
         res.json({ err: "Bad request!" })
         return
     }
-    if (req.body.username && req.body.password) {
-        username = req.body.username;
-        password = req.body.password;
-    } else {
-        username = req.headers.username;
-        password = req.headers.password;
-    }
+
     function findUser(account) {
         return account.name === username
     }

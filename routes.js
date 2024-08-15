@@ -17,6 +17,8 @@ const pathlib = require("path");
 const multer = require("multer");
 const fs = require("fs");
 const yaml = require("js-yaml");
+const CryptoJS = require("crypto-js");
+const jwt = require('jsonwebtoken');
 
 if (!fs.existsSync("./config.yml") || fs.existsSync("./config.yaml")) {
     console.log("config.yml is missing...".yellow);
@@ -77,9 +79,19 @@ routes.post("/verify-password", (req, res) => {
         .find((account) => { return account.name === req.body.username })
     console.log(req.body);
 
+    let jwtToken = jwt.sign({
+        name: account.name,
+        password: account.password
+    }, config.secret_jwt_key, { expiresIn: '24h' });
+
+    let encryptedToken = CryptoJS.AES.encrypt(jwtToken, config.secret_encryption_key).toString();
+
+    console.log(encryptedToken);
+
     res.status(200);
     res.json({
         res: "Verified!",
+        token: encryptedToken,
         permissions: account.permissions
     })
 })
@@ -511,20 +523,33 @@ routes.post("/create-copy", (req, res) => {
                 index++;
                 copyPath = `${parentPath}/${basename} (${index})${extname}`;
             }
-            fs.cpSync(`${config.folder}${path}`, `${config.folder}${copyPath}`);
+            fs.cp(`${config.folder}${path}`, `${config.folder}${copyPath}`, (err) => {
+                if (err) {
+                    res.status(520);
+                    res.json({ response: "Unknown error!" })
+                    return
+                }
+                res.status(200);
+                res.json({ response: "Copied!" })
+
+            });
         } else {
             copyPath = `${parentPath}/${basename}`;
             while (fs.existsSync(`${config.folder}${copyPath}`)) {
                 index++;
                 copyPath = `${parentPath}/${basename} (${index})`;
             }
-            fs.cpSync(`${config.folder}${path}`, `${config.folder}${copyPath}`, { recursive: true });
+            fs.cp(`${config.folder}${path}`, `${config.folder}${copyPath}`, { recursive: true }, (err) => {
+                if (err) {
+                    res.status(520);
+                    res.json({ response: "Unknown error!" })
+                    return
+                }
+                res.status(200);
+                res.json({ response: "Copied!" })
+            });
         }
     }
-
-    
-    res.status(200);
-    res.json({ response: "Copied!" })
 })
 
 routes.post("/rename-file", (req, res) => {
