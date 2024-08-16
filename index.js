@@ -5,7 +5,8 @@ const yaml = require("js-yaml");
 const path = require("path");
 const { strings } = require("./strings");
 const {
-    getTotalSize
+    getTotalSize,
+    outputFolderSize
 } = require("./utils");
 const cors = require("cors");
 const routes = require("./routes");
@@ -67,17 +68,12 @@ io.use((socket, next) => {
 
     const token = socket.handshake.auth.token;
 
-    console.log("No errors here");
-
     let bytes = CryptoJS.AES.decrypt(token, config.secret_encryption_key);
     bytes = bytes.toString(CryptoJS.enc.Utf8);
-    console.log(bytes);
-    
     let decoded;
     try {
         decoded = jwt.verify(bytes, config.secret_jwt_key);
     } catch (err) {
-        console.error(err.message);
         if (err.message === "jwt expired") {
             res.status(401);
             res.json({ err: "Session expired!" })
@@ -87,9 +83,6 @@ io.use((socket, next) => {
             res.json({ err: "Unknown session error!" })
         }
     }
-
-    console.log("No errors here");
-    
 
     username = decoded.name;
     password = decoded.password;
@@ -114,7 +107,7 @@ io.use((socket, next) => {
     }
 
     socket.handshake.auth.account = account;
-    
+
     next();
 });
 
@@ -147,9 +140,7 @@ app.use("/api", (req, res, next) => {
         let decoded;
         try {
             decoded = jwt.verify(bytes, config.secret_jwt_key);
-            console.log(decoded);
         } catch (err) {
-            console.error(err.message);
             if (err.message === "jwt expired") {
                 res.status(401);
                 res.json({ err: "Session expired!" })
@@ -216,12 +207,7 @@ app.get("*", (req, res) => {
 
 
 // Get folder size on start
-console.log("Total size:".green);
-if (config.storage_limit) {
-    console.log(`${getTotalSize(config.folder)} / ${config.storage_limit}`);
-} else {
-    console.log(getTotalSize(config.folder));
-}
+outputFolderSize(config)
 
 if (!abort) {
     httpServer.listen(config.port, () => {

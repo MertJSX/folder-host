@@ -1,9 +1,10 @@
 const fs = require("fs");
 const path = require("path");
+const { promisify } = require('util')
 const yauzl = require('yauzl');
 const { mkdirp } = require('mkdirp');
 const { DirItem } = require("./dir_item");
-const fastFolderSizeSync = require('fast-folder-size/sync');
+const fastFolderSize = require('fast-folder-size')
 
 const getAllFiles = function (dirPath, arrayOfFiles) {
   let files = fs.readdirSync(dirPath)
@@ -60,17 +61,22 @@ function getStringSize(str) {
   return new Blob([str]).size;
 }
 
-function removeDir(directoryPath) {
+async function removeDir(directoryPath) {
   if (fs.existsSync(directoryPath)) {
-    fs.readdirSync(directoryPath).forEach((file, index) => {
+    const files = await fs.promises.readdir(directoryPath);
+
+    for (const file of files) {
       const curPath = path.join(directoryPath, file);
-      if (fs.lstatSync(curPath).isDirectory()) {
-        removeDir(curPath);
+      const stats = await fs.promises.lstat(curPath);
+
+      if (stats.isDirectory()) {
+        await removeDir(curPath);
       } else {
-        fs.unlinkSync(curPath);
+        await fs.promises.unlink(curPath);
       }
-    });
-    fs.rmdirSync(directoryPath);
+    }
+
+    await fs.promises.rmdir(directoryPath);
   }
 }
 
@@ -173,56 +179,70 @@ function extractFiles(zipFilePath, outputDir, totalUncompressedSize, socket, io)
 }
 
 
-const getDirItems = function (dirPath, mode, config) {
-  let files = fs.readdirSync(dirPath, { withFileTypes: true })
+const getDirItems = async function (dirPath, mode, config) {
+  try {
+    const data = await fs.promises.readdir(dirPath, { withFileTypes: true });
+    let arrayOfItems = [];
 
-  let arrayOfItems = []
+    for (const [index, file] of data.entries()) {
+      let fileStats = fs.statSync(path.join(dirPath, file.name));
+      let isDirectory = fileStats.isDirectory();
+      let size = fileStats.size;
+      let parentPath;
 
-  files.forEach(function (file, index) {
-    let fileStats = fs.statSync(dirPath + "/" + file.name);
-    let isDirectory = fileStats.isDirectory();
-    let size = fileStats.size;
-    let parentPath;
+      if (mode === "Quality mode" && isDirectory) {
+        size = await getTotalSize(path.join(dirPath, file.name));
+      }
 
-    if (mode === "Quality mode" && isDirectory) {
-      size = getTotalSize(dirPath + file.name);
+      if (file.parentPath === config.folder + "/") {
+        parentPath = "./";
+      } else {
+        parentPath = replacePathPrefix(file.parentPath, `${config.folder}/`);
+      }
+
+      let item;
+      mode === "Quality mode" && isDirectory ?
+        item = new DirItem(file.name, parentPath, `${parentPath}${file.name}`, isDirectory, fileStats.birthtime, fileStats.mtime, size, index)
+        : item = new DirItem(file.name, parentPath, `${parentPath}${file.name}`, isDirectory, fileStats.birthtime, fileStats.mtime, convertBytes(size), index);
+
+      arrayOfItems.push(item);
     }
 
-    if (file.parentPath === config.folder + "/") {
-      // console.log(`${file.parentPath} === ${config.folder}`);
-      parentPath = "./";
-    } else {
-      // console.log(`${file.parentPath} === ${config.folder}`);
-      parentPath = replacePathPrefix(file.parentPath, `${config.folder}/`);
-    }
+    return arrayOfItems;
+  } catch (err) {
+    console.error(err);
+    return [];
+  }
+};
 
-    let item;
-
-    mode === "Quality mode" && isDirectory ?
-      item = new DirItem(file.name, parentPath, `${parentPath}${file.name}`, isDirectory, fileStats.birthtime, fileStats.mtime, size, index)
-      : item = new DirItem(file.name, parentPath, `${parentPath}${file.name}`, isDirectory, fileStats.birthtime, fileStats.mtime, convertBytes(size), index);
-
-
-    arrayOfItems.push(item)
-  })
-
-  return arrayOfItems
-}
-
-const getTotalSize = function (directoryPath, stringOutput = true) {
-
-  const totalSize = fastFolderSizeSync(directoryPath)
+const getTotalSize = async function (directoryPath, stringOutput = true) {
+  const fastFolderSizeAsync = promisify(fastFolderSize)
+  const bytes = await fastFolderSizeAsync(directoryPath)
 
   if (stringOutput) {
-    return convertBytes(totalSize);
+    return convertBytes(bytes);
   } else {
-    return totalSize;
+    return bytes;
   }
 }
 
-const getRemainingFolderSpace = (config) => {
+const outputFolderSize = async (config) => {
+  try {
+    let folderSize = await getTotalSize(config.folder);
+
+    if (config.storage_limit) {
+      console.log("Total size: ".green, `${folderSize} / ${config.storage_limit}`);
+    } else {
+      console.log("Total size: ".green, folderSize);
+    }
+  } catch (err) {
+    console.error(err);
+  }
+}
+
+const getRemainingFolderSpace = async (config) => {
   let maxSize = convertStringToBytes(config.storage_limit);
-  let folderSize = getTotalSize(config.folder, false);
+  let folderSize = await getTotalSize(config.folder, false);
   let remainingSpace = maxSize - folderSize;
   return remainingSpace;
 }
@@ -239,5 +259,6 @@ module.exports = {
   getStringSize,
   getRemainingFolderSpace,
   convertBytes,
-  extractFiles
+  extractFiles,
+  outputFolderSize
 };

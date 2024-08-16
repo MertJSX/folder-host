@@ -11,10 +11,6 @@ const watchers = new Map();
 module.exports = function (io, config) {
     io.on('connection', (socket) => {
         let account = socket.handshake.auth.account;
-        console.log("Socket account is");
-        
-        console.log(account);
-        
 
         socket.join(socket.id);
 
@@ -68,10 +64,10 @@ module.exports = function (io, config) {
             }
         });
 
-        socket.on('unzip', (res) => {
+        socket.on('unzip', async (res) => {
             if (account.permissions.unzip) {
                 let totalUncompressedSize = 0;
-                let limit = getRemainingFolderSpace(config);
+                let limit = await getRemainingFolderSpace(config);
                 let zipFilePath = `${config.folder}${res.path}`;
                 let nameOfOutputDir = path.basename(`${config.folder}${res.path}`, ".zip");
                 let changedNameOfOutputDir = path.basename(`${config.folder}${res.path}`, ".zip");

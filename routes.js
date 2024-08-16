@@ -96,7 +96,7 @@ routes.post("/verify-password", (req, res) => {
     })
 })
 
-routes.post("/read-dir", (req, res) => {
+routes.post("/read-dir", async (req, res) => {
 
     if (!req.body.account.permissions.read_directories) {
         res.status(403)
@@ -139,7 +139,7 @@ routes.post("/read-dir", (req, res) => {
     if (mode === "Optimized mode") {
         directoryInfo = new DirItem(folderName, getParent(dirPath), dirPath, directoryData.isDirectory(), directoryData.birthtime, directoryData.mtime, "N/A")
     } else {
-        directoryInfo = new DirItem(folderName, getParent(dirPath), dirPath, directoryData.isDirectory(), directoryData.birthtime, directoryData.mtime, getTotalSize(`${config.folder}${path}`))
+        directoryInfo = new DirItem(folderName, getParent(dirPath), dirPath, directoryData.isDirectory(), directoryData.birthtime, directoryData.mtime, await getTotalSize(`${config.folder}${path}`))
     }
 
     if (path === "/" && config.storage_limit) {
@@ -148,7 +148,8 @@ routes.post("/read-dir", (req, res) => {
         directoryInfo.storage_limit = "UNLIMITED"
     }
 
-    let data = getDirItems(`${config.folder}${path}`, mode, config);
+    let data = await getDirItems(`${config.folder}${path}`, mode, config);
+    
     let isEmpty = false;
 
     if (!data[0]) {
@@ -258,7 +259,7 @@ routes.post("/download", (req, res) => {
 
 })
 
-routes.post("/upload", (req, res) => {
+routes.post("/upload", async (req, res) => {
 
     let path = req.query.path;
 
@@ -292,7 +293,7 @@ routes.post("/upload", (req, res) => {
         }
     }
 
-    let remainingFreeSpace = getRemainingFolderSpace(config);
+    let remainingFreeSpace = await getRemainingFolderSpace(config);
 
     const upload = multer({ storage: storage, limits: { fileSize: remainingFreeSpace } }).single("file")
 
@@ -314,7 +315,7 @@ routes.post("/upload", (req, res) => {
     })
 })
 
-routes.post("/delete", (req, res) => {
+routes.post("/delete", async (req, res) => {
 
     let path;
     let itemName;
@@ -348,7 +349,7 @@ routes.post("/delete", (req, res) => {
             return;
         }
         if (item.isDirectory() && !recovery_bin) {
-            removeDir(`${config.folder}${path}`);
+            await removeDir(`${config.folder}${path}`);
             res.status(200)
             res.json({ response: "Deleted!" })
             return;
@@ -392,10 +393,10 @@ routes.post("/delete", (req, res) => {
                 let sizeOfFileToBeDeleted = fileToBeDeletedStat.size;
 
                 if (fileToBeDeletedStat.isDirectory()) {
-                    sizeOfFileToBeDeleted = getTotalSize(`${config.folder}${path}`, false);
+                    sizeOfFileToBeDeleted = await getTotalSize(`${config.folder}${path}`, false);
                 }
 
-                let sizeOfRecoveryBin = getTotalSize("./recovery_bin", false);
+                let sizeOfRecoveryBin = await getTotalSize("./recovery_bin", false);
                 let totalSize = sizeOfFileToBeDeleted + sizeOfRecoveryBin;
 
                 if (totalSize > bin_storage_limit) {
@@ -406,7 +407,7 @@ routes.post("/delete", (req, res) => {
             }
 
             fs.renameSync(`${config.folder}${path}`, `./recovery_bin/${itemName}`);
-            res.status(200)
+            res.status(200);
             res.json({ response: "Moved to recovery_bin!" })
             return;
         }
