@@ -75,12 +75,13 @@ io.use((socket, next) => {
         decoded = jwt.verify(bytes, config.secret_jwt_key);
     } catch (err) {
         if (err.message === "jwt expired") {
-            res.status(401);
-            res.json({ err: "Session expired!" })
-            return
+            const err = new Error('Session expired');
+            err.data = { content: "Please try to login again." };
+            return next(err);
         } else {
-            res.status(401);
-            res.json({ err: "Unknown session error!" })
+            const err = new Error('Unknown session error');
+            err.data = { content: "Please try to login again." };
+            return next(err);
         }
     }
 
