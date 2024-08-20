@@ -1,16 +1,16 @@
 const fs = require('fs');
-const path = require('path');
+const pathlib = require('path');
 const yauzl = require('yauzl');
 const colors = require("colors");
 const chokidar = require('chokidar');
-const CryptoJS = require("crypto-js");
-const jwt = require('jsonwebtoken');
-const { extractFiles, getRemainingFolderSpace } = require("./utils");
+const { extractFiles, getRemainingFolderSpace, logFileWriting } = require("./utils");
+const { logAction } = require("./log");
 const watchers = new Map();
 
 module.exports = function (io, config) {
     io.on('connection', (socket) => {
         let account = socket.handshake.auth.account;
+        let countdownTimer = null;
 
         socket.join(socket.id);
 
@@ -50,17 +50,20 @@ module.exports = function (io, config) {
             }
         });
 
+        const updateCountdownTimer = (updateFunc) => {
+            countdownTimer = updateFunc(countdownTimer);
+        };
+
         socket.on('change-file', (res) => {
             if (!account.permissions.change) {
-
                 io.to(socket.id).emit("error", {
                     err: "No permission!"
                 })
-
                 return
             }
             if (fs.existsSync(`${config.folder}${res.path}`)) {
                 fs.writeFileSync(watchFile, res.content);
+                logFileWriting(`${config.folder}${res.path}`, updateCountdownTimer, account, config)
             }
         });
 
@@ -69,8 +72,8 @@ module.exports = function (io, config) {
                 let totalUncompressedSize = 0;
                 let limit = await getRemainingFolderSpace(config);
                 let zipFilePath = `${config.folder}${res.path}`;
-                let nameOfOutputDir = path.basename(`${config.folder}${res.path}`, ".zip");
-                let changedNameOfOutputDir = path.basename(`${config.folder}${res.path}`, ".zip");
+                let nameOfOutputDir = pathlib.basename(`${config.folder}${res.path}`, ".zip");
+                let changedNameOfOutputDir = pathlib.basename(`${config.folder}${res.path}`, ".zip");
                 let outputDir = `${config.folder}/${nameOfOutputDir}`;
                 let i = 0;
                 if (!fs.existsSync(zipFilePath)) {
