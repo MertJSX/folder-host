@@ -19,6 +19,7 @@ const fs = require("fs");
 const yaml = require("js-yaml");
 const CryptoJS = require("crypto-js");
 const jwt = require('jsonwebtoken');
+const { logAction } = require("./log");
 
 if (!fs.existsSync("./config.yml") || fs.existsSync("./config.yaml")) {
     console.log("config.yml is missing...".yellow);
@@ -50,26 +51,23 @@ const storage = multer.diskStorage({
     filename: function (req, file, cb) {
         let path = req.query.path;
         let fileName = file.originalname;
-        let changedName = file.originalname;
-
-        console.log(fileName);
 
         if (path.slice(-1) !== "/") {
             path = path + "/"
         }
 
-        console.log(`${config.folder}${req.query.path}${fileName}`);
-
         if (fs.existsSync(`${config.folder}${req.query.path}${fileName}`)) {
             let i = 0;
-            while (fs.existsSync(`${config.folder}${req.query.path}${changedName}`)) {
+            let memoryName = fileName;
+            while (fs.existsSync(`${config.folder}${req.query.path}${fileName}`)) {
                 i++;
-                let extension = pathlib.extname(`${config.folder}${req.query.path}${fileName}`);
-                let name = pathlib.basename(`${config.folder}${req.query.path}${fileName}`, extension)
-                changedName = `${name} (${i})${extension}`;
+                let extension = pathlib.extname(`${config.folder}${req.query.path}${memoryName}`);
+                let name = pathlib.basename(`${config.folder}${req.query.path}${memoryName}`, extension)
+                fileName = `${name} (${i})${extension}`;
             }
         }
-        cb(null, changedName);
+
+        cb(null, fileName);
     },
 });
 
@@ -87,6 +85,8 @@ routes.post("/verify-password", (req, res) => {
     let encryptedToken = CryptoJS.AES.encrypt(jwtToken, config.secret_encryption_key).toString();
 
     console.log(encryptedToken);
+
+    logAction(req.body.account.name, "Logged in", `Token: ${encryptedToken}`, config);
 
     res.status(200);
     res.json({
@@ -149,12 +149,14 @@ routes.post("/read-dir", async (req, res) => {
     }
 
     let data = await getDirItems(`${config.folder}${path}`, mode, config);
-    
+
     let isEmpty = false;
 
     if (!data[0]) {
         isEmpty = true;
     }
+
+    logAction(req.body.account.name, "Readed Directory", `${config.folder}${path}`, config);
 
     res.status(200);
     res.json({
@@ -216,6 +218,7 @@ routes.post("/read-file", (req, res) => {
             res.status(520);
             res.json({ err: "Unknown error!" })
         } else {
+            logAction(req.body.account.name, `Readed File (${pathlib.basename(path)})`, `${config.folder}${path}`, config);
             res.status(200);
             res.json({ data: data, res: "Successfully readed!", title: fileName, lastModified: lastModified, writePermission: req.body.account.permissions.change })
         }
@@ -253,6 +256,7 @@ routes.post("/download", (req, res) => {
         }
     }
 
+    logAction(req.body.account.name, "Downloaded File", `${config.folder}${path}`, config);
 
     res.status(200);
     res.download(`${config.folder}${path}`)
@@ -262,9 +266,7 @@ routes.post("/download", (req, res) => {
 routes.post("/upload", async (req, res) => {
 
     let path = req.query.path;
-
-    console.log(req.body.account);
-
+    let account = req.body.account;
 
     if (!req.body.account.permissions.upload) {
         res.status(403)
@@ -310,6 +312,18 @@ routes.post("/upload", async (req, res) => {
             res.json({ err: "Unknown error!" })
             return
         }
+
+        let filepath = `${config.folder}${req.query.path}`;
+
+        console.log(req.file.filename);
+        
+
+        if (!filepath.endsWith("/")) {
+            filepath += "/";
+        }
+
+
+        logAction(account.name, "Uploaded File", `${filepath}${req.file.filename}`, config);
         res.status(200);
         res.json({ response: "Successfully uploaded!" })
     })
@@ -350,6 +364,7 @@ routes.post("/delete", async (req, res) => {
         }
         if (item.isDirectory() && !recovery_bin) {
             await removeDir(`${config.folder}${path}`);
+            logAction(req.body.account.name, "Deleted directory", `${config.folder}${path}`, config);
             res.status(200)
             res.json({ response: "Deleted!" })
             return;
@@ -361,6 +376,7 @@ routes.post("/delete", async (req, res) => {
                     res.status(520)
                     res.json({ err: "Unknown error" })
                 } else {
+                    logAction(req.body.account.name, "Deleted file", `${config.folder}${path}`, config);
                     res.status(200)
                     res.json({ response: "Deleted!" })
                 }
@@ -406,7 +422,8 @@ routes.post("/delete", async (req, res) => {
                 }
             }
 
-            fs.renameSync(`${config.folder}${path}`, `./recovery_bin/${itemName}`);
+            await fs.promises.rename(`${config.folder}${path}`, `./recovery_bin/${itemName}`);
+            logAction(req.body.account.name, "Moved to recovery_bin", `${config.folder}${path}`, config);
             res.status(200);
             res.json({ response: "Moved to recovery_bin!" })
             return;
@@ -415,7 +432,7 @@ routes.post("/delete", async (req, res) => {
 
 })
 
-routes.post("/write-file", (req, res) => {
+routes.post("/write-file", async (req, res) => {
 
     let filepath = req.query.path;
     let itemType = req.body.itemType; // folder or file
@@ -471,17 +488,20 @@ routes.post("/write-file", (req, res) => {
         return;
     }
     if (type === "create" && itemType === "folder" && itemName !== undefined) {
-        fs.mkdirSync(`${config.folder}${filepath}${itemName}`)
+        await fs.promises.mkdir(`${config.folder}${filepath}${itemName}`)
+        logAction(req.body.account.name, "Created Item", `${config.folder}${filepath}${itemName}`, config);
         res.status(200);
         res.json({ response: "Folder created!" })
         return;
     } else if (type === "create" && itemType === "file" && itemName !== undefined) {
-        fs.writeFileSync(`${config.folder}${filepath}${itemName}`, "");
+        await fs.promises.writeFile(`${config.folder}${filepath}${itemName}`, "");
+        logAction(req.body.account.name, "Created Item", `${config.folder}${filepath}${itemName}`, config);
         res.status(200);
         res.json({ response: "File created!" })
         return;
     } else if (type === "change") {
-        fs.writeFileSync(`${config.folder}${filepath}`, content);
+        // Instead of this we use socket.io emits.
+        await fs.promises.writeFile(`${config.folder}${filepath}`, content);
         lastModified = fs.statSync(`${config.folder}${filepath}`);
         res.status(200);
         res.json({ response: "Saved!", lastModified: lastModified.mtime })
@@ -530,6 +550,7 @@ routes.post("/create-copy", (req, res) => {
                     res.json({ response: "Unknown error!" })
                     return
                 }
+                logAction(req.body.account.name, "Copied File", `${config.folder}${path}`, config);
                 res.status(200);
                 res.json({ response: "Copied!" })
 
@@ -546,6 +567,7 @@ routes.post("/create-copy", (req, res) => {
                     res.json({ response: "Unknown error!" })
                     return
                 }
+                logAction(req.body.account.name, "Copied Folder", `${config.folder}${path}`, config);
                 res.status(200);
                 res.json({ response: "Copied!" })
             });
@@ -645,14 +667,32 @@ routes.post("/rename-file", (req, res) => {
             res.json({ err: "The destination already has a item named!" });
             return;
         }
-        fs.renameSync(`${config.folder}${oldFilepath}`, `${config.folder}${newFilepath}${oldFileName}`);
+        fs.rename(`${config.folder}${oldFilepath}`, `${config.folder}${newFilepath}${oldFileName}`, (err) => {
+            if (err) {
+                res.status(520);
+                res.json({ err: "Unknown error!" })
+                return
+            }
+            let oldPathPlaceholder = `${config.folder}${oldFilepath}`;
+            let newPathPlaceholder = `${config.folder}${newFilepath}${oldFileName}`;
+            logAction(req.body.account.name, "Moved Item", `${oldPathPlaceholder} => ${newPathPlaceholder}`, config);
+        });
     } else {
         if (fs.existsSync(`${config.folder}${newFilepath}`)) {
             res.status(520);
             res.json({ err: "The destination already has a item named!" });
             return;
         }
-        fs.renameSync(`${config.folder}${oldFilepath}`, `${config.folder}${newFilepath}`);
+        fs.rename(`${config.folder}${oldFilepath}`, `${config.folder}${newFilepath}`, (err) => {
+            if (err) {
+                res.status(520);
+                res.json({ err: "Unknown error!" })
+                return
+            }
+            let oldPathPlaceholder = `${config.folder}${oldFilepath}`;
+            let newPathPlaceholder = `${config.folder}${newFilepath}`;
+            logAction(req.body.account.name, "Renamed Item", `${oldPathPlaceholder} => ${newPathPlaceholder}`, config);
+        });
     }
 
     res.status(200);
