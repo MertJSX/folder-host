@@ -24,4 +24,30 @@ async function logAction(username, text, description, config) {
     }
 }
 
-module.exports = {logAction}
+function logFileWriting(filePath, updateTimerFunc, account, config) {
+    updateTimerFunc(timer => {
+        if (timer !== null) {
+            clearTimeout(timer);
+
+            timer = setTimeout(() => {
+                console.log("Stopped writing!");
+                logAction(account.name, `Stopped Writing File (${path.basename(filePath)}) before 10 seconds`, filePath, config);
+
+                updateTimerFunc(() => { return null })
+            }, 10000);
+        } else {
+            console.log("Started writing");
+
+            logAction(account.name, `Started Writing File (${path.basename(filePath)})`, filePath, config);
+
+            timer = setTimeout(() => {
+                logAction(account.name, `Write (${path.basename(filePath)})`, filePath, config);
+            }, 10000);
+        }
+
+        return timer
+
+    });
+}
+
+module.exports = { logAction, logFileWriting }
