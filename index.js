@@ -39,7 +39,7 @@ config = yaml.load(fs.readFileSync('config.yml', 'utf8'));
 
 // Get config data on start
 
-console.log(config);
+// console.log(config);
 
 if (!config.port) {
     console.log("Port is missing...".yellow);
@@ -159,7 +159,6 @@ app.use("/api", (req, res, next) => {
         let decoded;
         try {
             decoded = jwt.verify(bytes, config.secret_jwt_key);
-            console.log(decoded);
         } catch (err) {
             console.error(err.message);
             if (err.message === "jwt expired") {
@@ -208,7 +207,9 @@ app.get("*", (req, res) => {
 
 
 // Get folder size on start
-outputFolderSize(config)
+if (config.get_foldersize_on_start) {
+    outputFolderSize(config)
+}
 
 if (!abort) {
     httpServer.listen(config.port, () => {
