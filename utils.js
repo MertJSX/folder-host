@@ -5,27 +5,6 @@ const yauzl = require('yauzl');
 const { mkdirp } = require('mkdirp');
 const { DirItem } = require("./dir_item");
 const fastFolderSize = require('fast-folder-size')
-const { logAction } = require("./log");
-
-const getAllFiles = function (dirPath, arrayOfFiles) {
-  let files = fs.readdirSync(dirPath)
-
-  arrayOfFiles = arrayOfFiles || []
-
-  files.forEach(function (file) {
-    if (fs.statSync(dirPath + "/" + file).isDirectory()) {
-      arrayOfFiles = getAllFiles(dirPath + "/" + file, arrayOfFiles)
-    } else {
-      arrayOfFiles.push(path.join(__dirname, dirPath, file))
-    }
-  })
-
-  // arrayOfFiles.forEach(function(filePath) {
-  //     totalSize += fs.statSync(filePath).size
-  // })
-
-  return arrayOfFiles
-}
 
 
 const convertBytes = function (bytes) {
@@ -248,32 +227,6 @@ const getRemainingFolderSpace = async (config) => {
   return remainingSpace;
 }
 
-function logFileWriting(filePath, updateTimerFunc, account, config) {
-  updateTimerFunc(timer => {
-    if (timer !== null) {
-      clearTimeout(timer);
-
-      timer = setTimeout(() => {
-        console.log("Stopped writing!");
-        logAction(account.name, `Stopped Writing File (${path.basename(filePath)}) before 10 seconds`, filePath, config);
-
-        updateTimerFunc(() => {return null})
-      }, 10000);
-    } else {
-      console.log("Started writing");
-
-      logAction(account.name, `Started Writing File (${path.basename(filePath)})`, filePath, config);
-
-      timer = setTimeout(() => {
-        logAction(account.name, `Write (${path.basename(filePath)})`, filePath, config);
-      }, 10000);
-    }
-
-    return timer
-    
-  });
-}
-
 
 
 module.exports = {
@@ -287,6 +240,5 @@ module.exports = {
   getRemainingFolderSpace,
   convertBytes,
   extractFiles,
-  outputFolderSize,
-  logFileWriting
+  outputFolderSize
 };
