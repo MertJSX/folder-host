@@ -75,7 +75,6 @@ const storage = multer.diskStorage({
 routes.post("/verify-password", (req, res) => {
     let account = config.accounts
         .find((account) => { return account.name === req.body.username })
-    console.log(req.body);
 
     let jwtToken = jwt.sign({
         name: account.name,
@@ -83,8 +82,6 @@ routes.post("/verify-password", (req, res) => {
     }, config.secret_jwt_key, { expiresIn: '24h' });
 
     let encryptedToken = CryptoJS.AES.encrypt(jwtToken, config.secret_encryption_key).toString();
-
-    console.log(encryptedToken);
 
     logAction(req.body.account.name, "Logged in", `Token: ${encryptedToken}`, config);
 
@@ -214,7 +211,7 @@ routes.post("/read-file", (req, res) => {
 
     fs.readFile(`${config.folder}${path}`, "utf8", (err, data) => {
         if (err) {
-            console.log(err);
+            console.error(err);
             res.status(520);
             res.json({ err: "Unknown error!" })
         } else {
@@ -301,9 +298,7 @@ routes.post("/upload", async (req, res) => {
 
     upload(req, res, (err) => {
         if (err) {
-            console.log(err);
             if (err.code === "LIMIT_FILE_SIZE") {
-                console.log(err);
                 res.status(413);
                 res.json({ err: `File too large! Remaining free space is: ${convertBytes(remainingFreeSpace)}` })
                 return
@@ -314,9 +309,6 @@ routes.post("/upload", async (req, res) => {
         }
 
         let filepath = `${config.folder}${req.query.path}`;
-
-        console.log(req.file.filename);
-        
 
         if (!filepath.endsWith("/")) {
             filepath += "/";
@@ -369,10 +361,8 @@ routes.post("/delete", async (req, res) => {
             res.json({ response: "Deleted!" })
             return;
         } else if (!recovery_bin) {
-            console.log(`${config.folder}${path}`);
             fs.unlink(`${config.folder}${path}`, (err) => {
                 if (err) {
-                    console.log(err);
                     res.status(520)
                     res.json({ err: "Unknown error" })
                 } else {
@@ -394,7 +384,6 @@ routes.post("/delete", async (req, res) => {
             if (fs.existsSync(`./recovery_bin/${itemName}`)) {
                 let i = 0;
                 while (fs.existsSync(`./recovery_bin/${itemName}`)) {
-                    console.log(`./recovery_bin/${itemName}`);
                     i++;
                     itemName = `${pathlib.basename(path, pathlib.extname(path))} (${i})${pathlib.extname(path)}`;
                 }
@@ -476,8 +465,6 @@ routes.post("/write-file", async (req, res) => {
         return
     }
 
-    console.log(`${config.folder}${filepath}${itemName}`);
-
     if (fs.existsSync(`${config.folder}${filepath}/${itemName}`) && type === "create") {
         res.status(400);
         res.json({ err: "Already exist!" })
@@ -512,7 +499,7 @@ routes.post("/write-file", async (req, res) => {
     }
 })
 
-routes.post("/create-copy", (req, res) => {
+routes.post("/create-copy", async (req, res) => {
 
     let path = req.query.path;
     let parentPath;
@@ -540,6 +527,18 @@ routes.post("/create-copy", (req, res) => {
         if (pathStat.isFile()) {
             extname = pathlib.extname(path);
             copyPath = `${parentPath}/${basename}${extname}`;
+            if (config.storage_limit) {
+                let fileSize = pathStat.size;
+                let remainingFreeSpace = await getRemainingFolderSpace(config);
+
+                console.log(convertBytes(fileSize), convertBytes(remainingFreeSpace));
+                
+                if (fileSize > remainingFreeSpace) {
+                    res.status(507);
+                    res.json({err: "Not enough space!"});
+                    return
+                }
+            }
             while (fs.existsSync(`${config.folder}${copyPath}`)) {
                 index++;
                 copyPath = `${parentPath}/${basename} (${index})${extname}`;
@@ -556,6 +555,19 @@ routes.post("/create-copy", (req, res) => {
 
             });
         } else {
+            if (config.storage_limit) {
+                let folderSize = await getTotalSize(`${config.folder}${path}`, false);
+                let remainingFreeSpace = await getRemainingFolderSpace(config);
+
+                console.log(convertBytes(folderSize), convertBytes(remainingFreeSpace));
+                
+                
+                if (folderSize > remainingFreeSpace) {
+                    res.status(507);
+                    res.json({err: "Not enough space!"});
+                    return
+                }
+            }
             copyPath = `${parentPath}/${basename}`;
             while (fs.existsSync(`${config.folder}${copyPath}`)) {
                 index++;
