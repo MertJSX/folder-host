@@ -3,8 +3,8 @@ const pathlib = require('path');
 const yauzl = require('yauzl');
 const colors = require("colors");
 const chokidar = require('chokidar');
-const { extractFiles, getRemainingFolderSpace, logFileWriting } = require("./utils");
-const { logAction } = require("./log");
+const { extractFiles, getRemainingFolderSpace } = require("./utils");
+const { logFileWriting } = require("./log");
 const watchers = new Map();
 
 module.exports = function (io, config) {
@@ -62,7 +62,7 @@ module.exports = function (io, config) {
                 return
             }
             if (fs.existsSync(`${config.folder}${res.path}`)) {
-                fs.writeFileSync(watchFile, res.content);
+                fs.promises.writeFile(watchFile, res.content);
                 logFileWriting(`${config.folder}${res.path}`, updateCountdownTimer, account, config)
             }
         });

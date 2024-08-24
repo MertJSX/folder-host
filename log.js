@@ -30,13 +30,13 @@ function logFileWriting(filePath, updateTimerFunc, account, config) {
             clearTimeout(timer);
 
             timer = setTimeout(() => {
-                console.log("Stopped writing!");
+                // console.log("Stopped writing!");
                 logAction(account.name, `Stopped Writing File (${path.basename(filePath)}) before 10 seconds`, filePath, config);
 
                 updateTimerFunc(() => { return null })
             }, 10000);
         } else {
-            console.log("Started writing");
+            // console.log("Started writing");
 
             logAction(account.name, `Started Writing File (${path.basename(filePath)})`, filePath, config);
 

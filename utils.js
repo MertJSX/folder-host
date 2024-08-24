@@ -108,7 +108,6 @@ function extractFiles(zipFilePath, outputDir, totalUncompressedSize, socket, io)
           return
         });
       } else {
-        // Dosya
         mkdirp(path.dirname(fullPath)).then(() => {
           zipfile.openReadStream(entry, (err, readStream) => {
             if (err) throw err;
