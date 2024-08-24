@@ -52,8 +52,15 @@ accounts:
 
 # Holds deleted files. Accidentally, you might delete files that you don't want to delete.
 recovery_bin: false
+
 # Optionally you can limit recovery_bin storage. You can remove it if you want.
-# bin_storage_limit: "10 GB"
+bin_storage_limit: "100 GB"
+
+# Enable/Disable logging activities
+log_activities: true
+
+# Enable/Disable getting foldersize on start
+get_foldersize_on_start: true
 `,
 }
 
