@@ -19,25 +19,9 @@ const io = new Server(httpServer, { cors: { origin: "*" } });
 let config;
 let abort = false;
 
-if (!fs.existsSync("./config.yml") || fs.existsSync("./config.yaml")) {
-    console.log("config.yml is missing...".yellow);
-    console.log("Creating new config...".green);
-    if (!fs.existsSync("./test")) {
-        fs.mkdirSync("./test")
-    }
-    fs.writeFileSync("config.yml", strings.defaultConfig);
-}
-
-if (!fs.existsSync("./recovery_bin")) {
-    console.log("recovery_bin is missing...".yellow);
-    console.log("Creating new recovery_bin...".green);
-    fs.mkdirSync("recovery_bin");
-}
-
 config = yaml.load(fs.readFileSync('config.yml', 'utf8'));
 
 // Get config data on start
-
 // console.log(config);
 
 if (!config.port) {
@@ -212,7 +196,7 @@ if (config.get_foldersize_on_start) {
 
 if (!abort) {
     httpServer.listen(config.port, () => {
-        console.log(`The server has started on port ${config.port}!`.green);
-        console.log("IP: ".green + `http://127.0.0.1:${config.port}`.yellow);
+        console.log(`\nThe server has started on port ${config.port}!`.green);
+        console.log("IP: ".green + `http://127.0.0.1:${config.port}\n`.yellow);
     })
 }

@@ -23,7 +23,7 @@ const { logAction } = require("./log");
 
 if (!fs.existsSync("./config.yml") || fs.existsSync("./config.yaml")) {
     console.log("config.yml is missing...".yellow);
-    console.log("Creating new config...".green);
+    console.log("Creating new config...\n".green);
     if (!fs.existsSync("./test")) {
         fs.mkdirSync("./test")
     }
@@ -32,12 +32,15 @@ if (!fs.existsSync("./config.yml") || fs.existsSync("./config.yaml")) {
 
 if (!fs.existsSync("./recovery_bin")) {
     console.log("recovery_bin is missing...".yellow);
-    console.log("Creating new recovery_bin...".green);
+    console.log("Creating new recovery_bin...\n".green);
     fs.mkdirSync("recovery_bin");
 }
 
 config = yaml.load(fs.readFileSync('config.yml', 'utf8'));
 
+if (!fs.existsSync(config.folder)) {
+    fs.mkdirSync(config.folder);
+}
 
 
 // Multer storage
