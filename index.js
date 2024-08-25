@@ -19,9 +19,31 @@ const io = new Server(httpServer, { cors: { origin: "*" } });
 let config;
 let abort = false;
 
+if (!fs.existsSync("./config.yml") || fs.existsSync("./config.yaml")) {
+    console.log("config.yml is missing...".yellow);
+    console.log("Creating new config...\n".green);
+    if (!fs.existsSync("./test")) {
+        fs.mkdirSync("./test")
+    }
+    fs.writeFileSync("config.yml", strings.defaultConfig);
+}
+
+if (!fs.existsSync("./recovery_bin")) {
+    console.log("recovery_bin is missing...".yellow);
+    console.log("Creating new recovery_bin...\n".green);
+    fs.mkdirSync("recovery_bin");
+}
+
 config = yaml.load(fs.readFileSync('config.yml', 'utf8'));
 
+if (!fs.existsSync(config.folder)) {
+    console.log(`${config.folder} is missing...`.yellow);
+    console.log(`Creating new ${config.folder}...\n`.green);
+    fs.mkdirSync(config.folder);
+}
+
 // Get config data on start
+
 // console.log(config);
 
 if (!config.port) {
@@ -190,7 +212,7 @@ app.get("*", (req, res) => {
 
 
 // Get folder size on start
-if (config.get_foldersize_on_start) {
+if (config.get_foldersize_on_start && fs.existsSync(config.folder)) {
     outputFolderSize(config)
 }
 
