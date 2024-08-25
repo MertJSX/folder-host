@@ -1,6 +1,5 @@
 const strings = {
-defaultConfig: `
-# Port is required. Don't delete it!
+defaultConfig: `# Port is required. Don't delete it!
 port: 5000
 
 # This is folder path. You can change it, but don't delete.
