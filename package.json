@@ -5,12 +5,11 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "build": "esbuild index.js --bundle --platform=node --outfile=build.js"
+    "build": "esbuild index.js --bundle --platform=node --outfile=folderhost.js"
   },
   "author": "MertJSX",
   "license": "ISC",
   "dependencies": {
-    "adm-zip": "^0.5.14",
     "chokidar": "^3.6.0",
     "colors": "^1.4.0",
     "cors": "^2.8.5",
