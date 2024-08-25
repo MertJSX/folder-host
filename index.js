@@ -5,7 +5,6 @@ const yaml = require("js-yaml");
 const path = require("path");
 const { strings } = require("./strings");
 const {
-    getTotalSize,
     outputFolderSize
 } = require("./utils");
 const cors = require("cors");
@@ -213,6 +212,7 @@ if (config.get_foldersize_on_start) {
 
 if (!abort) {
     httpServer.listen(config.port, () => {
-        console.log(`The server has started on port ${config.port}!`);
+        console.log(`The server has started on port ${config.port}!`.green);
+        console.log("IP: ".green + `http://127.0.0.1:${config.port}`.yellow);
     })
 }
