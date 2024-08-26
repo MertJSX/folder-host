@@ -218,7 +218,15 @@ if (config.get_foldersize_on_start && fs.existsSync(config.folder)) {
 
 if (!abort) {
     httpServer.listen(config.port, () => {
-        console.log(`\nThe server has started on port ${config.port}!`.green);
-        console.log("IP: ".green + `http://127.0.0.1:${config.port}\n`.yellow);
+        console.log(`
+      _______   __   __
+     / _____/  / /  / /
+    / /__     / /__/ /
+   / ___/    / ___  /
+  / /       / /  / /
+ /_/       /_/  /_/     `.cyan.bold, "By MertJSX".underline.brightCyan.italic);
+        
+        console.log(`\nThe server has started on port ${config.port}!`.gray);
+        console.log("IP: ".gray + `http://127.0.0.1:${config.port}\n`.yellow);
     })
 }
