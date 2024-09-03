@@ -1,11 +1,25 @@
 const fs = require("fs");
 const path = require("path");
-const { promisify } = require('util')
 const yauzl = require('yauzl');
 const { mkdirp } = require('mkdirp');
 const { DirItem } = require("./dir_item");
-const fastFolderSize = require('fast-folder-size')
 
+
+const getAllFiles = async function (dirPath, arrayOfFiles) {
+  let files = await fs.promises.readdir(dirPath)
+
+  arrayOfFiles = arrayOfFiles || []
+
+  files.forEach(async function (file) {
+    if (fs.statSync(dirPath + "/" + file).isDirectory()) {
+      arrayOfFiles = await getAllFiles(dirPath + "/" + file, arrayOfFiles)
+    } else {
+      arrayOfFiles.push(path.join(__dirname, dirPath, file))
+    }
+  })
+
+  return arrayOfFiles
+}
 
 const convertBytes = function (bytes) {
   const sizes = ["Bytes", "KB", "MB", "GB", "TB"]
@@ -195,15 +209,31 @@ const getDirItems = async function (dirPath, mode, config) {
 };
 
 const getTotalSize = async function (directoryPath, stringOutput = true) {
-  const fastFolderSizeAsync = promisify(fastFolderSize)
-  const bytes = await fastFolderSizeAsync(directoryPath)
+  const getSize = async (filePath) => {
+    const stats = await fs.promises.stat(filePath);
 
-  if (stringOutput) {
-    return convertBytes(bytes);
-  } else {
-    return bytes;
+    if (stats.isDirectory()) {
+      const files = await fs.promises.readdir(filePath);
+      const sizes = await Promise.all(files.map(file => getSize(path.join(filePath, file))));
+      return sizes.reduce((acc, size) => acc + size, 0);
+    } else {
+      return stats.size;
+    }
+  };
+
+  try {
+    const totalSize = await getSize(directoryPath);
+
+    if (stringOutput) {
+      return convertBytes(totalSize);
+    } else {
+      return totalSize;
+    }
+  } catch (err) {
+    console.error('Error calculating size:', err);
+    throw err;
   }
-}
+};
 
 const outputFolderSize = async (config) => {
   try {
