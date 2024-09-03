@@ -14,7 +14,7 @@ module.exports = function (io, config) {
 
         socket.join(socket.id);
 
-        console.log('User connected!'.green);
+        // console.log('User connected!'.green);
 
         const currentWatchPath = socket.handshake.auth.watch;
         const watchFile = `${config.folder}${currentWatchPath}`;
@@ -41,7 +41,7 @@ module.exports = function (io, config) {
         }
 
         socket.on('disconnect', () => {
-            console.log('User disconnected!'.red);
+            // console.log('User disconnected!'.red);
             const watcher = watchers.get(socket.id);
             if (watcher) {
                 watcher.close();
