@@ -26,11 +26,16 @@ It helps you to host your folder to your other friends or colleagues.
 
 
 ## Client Screenshot
+
 <img src="https://github.com/user-attachments/assets/b123ce9f-c8cb-49b0-9c75-0d1d16dba001" width="700px">
+
 
 ## Default config.yml
 
-```yml
+<details>
+  <summary>Show config</summary>
+
+  ```yml
 # Port is required. Don't delete it!
 port: 5000
 
@@ -94,3 +99,7 @@ log_activities: true
 get_foldersize_on_start: true
 
 ```
+
+</details>
+
+
