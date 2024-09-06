@@ -2,6 +2,7 @@
 
 ## What is Folder Host?
 It helps you to host your folder to your other friends or colleagues.
+Tested on: Windows 10, Windows 11, Fedora Linux 40
 
 <a href="https://github.com/MertJSX/folder-host/releases/tag/1.0.0" target="_blank">
   <img src="https://img.shields.io/badge/Download-Pre--Release-blue?style=for-the-badge&logo=github" alt="Download Pre-Release">
