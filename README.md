@@ -2,10 +2,37 @@
 
 ## What is Folder Host?
 It helps you to host your folder to your other friends or colleagues.
-Tested on: Windows 10, Windows 11, Fedora Linux 40
-
+<br>
+<br>
 <a href="https://github.com/MertJSX/folder-host/releases/tag/1.0.0" target="_blank">
   <img src="https://img.shields.io/badge/Download-Pre--Release-blue?style=for-the-badge&logo=github" alt="Download Pre-Release">
+</a>
+
+Tested on:
+<br>
+<a href="https://www.microsoft.com/en-us/software-download/windows10" target="_blank">
+<img
+   src="https://img.icons8.com/?size=48&id=108792&format=png"
+   alt="html5"
+   width="48"
+   height="48"
+/>
+</a>
+<a href="https://www.microsoft.com/en-us/software-download/windows11" target="_blank">
+<img
+   src="https://img.icons8.com/?size=48&id=TuXN3JNUBGOT&format=png"
+   alt="html5"
+   width="48"
+   height="48"
+/>
+</a>
+<a href="https://fedoraproject.org/" target="_blank">
+<img
+   src="https://img.icons8.com/?size=48&id=ZbBhBW0N2q3D&format=png"
+   alt="html5"
+   width="48"
+   height="48"
+/>
 </a>
 
 ## Features
@@ -30,7 +57,7 @@ Tested on: Windows 10, Windows 11, Fedora Linux 40
 - Copy files and folders
 
 
-## Client Screenshot
+## Client Screenshot ([Client](https://github.com/MertJSX/folder-host-client))
 
 <img src="https://github.com/user-attachments/assets/b123ce9f-c8cb-49b0-9c75-0d1d16dba001" width="700px">
 
