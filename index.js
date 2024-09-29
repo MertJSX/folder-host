@@ -5,7 +5,8 @@ const yaml = require("js-yaml");
 const path = require("path");
 const { strings } = require("./strings");
 const {
-    outputFolderSize
+    outputFolderSize,
+    checkSecurityIssue
 } = require("./utils");
 const cors = require("cors");
 const routes = require("./routes");
@@ -71,6 +72,14 @@ io.use((socket, next) => {
         return next(err);
     }
 
+    if (socket.handshake.auth.watch) {
+        if (socket.handshake.auth.watch.match(/\/\.\./)) {
+            
+            const err = new Error('Bad request!');
+            return next(err);
+        }
+    }
+
     const token = socket.handshake.auth.token;
 
     let bytes = CryptoJS.AES.decrypt(token, config.secret_encryption_key);
@@ -125,7 +134,7 @@ app.use(cors());
 app.use("/api", express.json());
 
 
-app.use("/api", (req, res, next) => {
+app.use("/api", async (req, res, next) => {
     let username;
     let password;
 
@@ -135,6 +144,12 @@ app.use("/api", (req, res, next) => {
             res.json({ err: "Bad request!" })
             return
         }
+    }
+
+    if (await checkSecurityIssue(req)) {
+        res.status(400);
+        res.json({ err: "Bad request!" })
+        return
     }
 
     if (req.body.username && req.body.password) {
@@ -155,6 +170,7 @@ app.use("/api", (req, res, next) => {
                 res.status(401);
                 res.json({ err: "Unknown session error!" })
             }
+            return
         }
         username = decoded.name;
         password = decoded.password;
@@ -174,6 +190,7 @@ app.use("/api", (req, res, next) => {
                 res.status(401);
                 res.json({ err: "Unknown session error!" })
             }
+            return
         }
         username = decoded.name;
         password = decoded.password;
@@ -225,7 +242,7 @@ if (!abort) {
    / ___/    / ___  /
   / /       / /  / /
  /_/       /_/  /_/     `.cyan.bold, "By MertJSX".underline.brightCyan.italic);
-        
+
         console.log(`\nThe server has started on port ${config.port}!`.gray);
         console.log("IP: ".gray + `http://127.0.0.1:${config.port}\n`.yellow);
     })

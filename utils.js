@@ -256,6 +256,34 @@ const getRemainingFolderSpace = async (config) => {
   return remainingSpace;
 }
 
+const checkSecurityIssue = async (req) => {
+  if (req.query.folder) {
+    if (req.query.folder.match(/\/\.\./)) {
+      return true
+    }
+  }
+  if (req.query.filepath) {
+    if (req.query.filepath.match(/\/\.\./)) {
+      return true
+    }
+  }
+  if (req.query.path) {
+    if (req.query.path.match(/\/\.\./)) {
+      return true
+    }
+  }
+  if (req.query.oldFilepath) {
+    if (req.query.oldFilepath.match(/\/\.\./)) {
+      return true
+    }
+  }
+  if (req.query.newFilepath) {
+    if (req.query.newFilepath.match(/\/\.\./)) {
+      return true
+    }
+  }
+  return false
+}
 
 
 module.exports = {
@@ -269,5 +297,6 @@ module.exports = {
   getRemainingFolderSpace,
   convertBytes,
   extractFiles,
-  outputFolderSize
+  outputFolderSize,
+  checkSecurityIssue
 };
